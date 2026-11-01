@@ -1,0 +1,53 @@
+Orca Plate Queue：GitHub 自动发布配置
+
+官方说明：https://cloud.orcaslicer.com/wiki/#publish-from-github
+仓库：ChenLei0504/orca-plate-queue
+
+一次性配置
+1. 在 Orca Cloud → 插件 → 共享插件，打开自己创建的队列插件，点击编辑。
+2. 找到 GitHub publishing，填写 ChenLei0504/orca-plate-queue，点击 Connect。
+   一个仓库只能绑定一个插件。这里无需创建、填写 API 密钥或 GitHub Personal Access Token。
+3. 将本配置包解压，把以下文件放到 GitHub 仓库根目录，保持目录结构：
+   .github/workflows/publish-orcacloud.yml
+   ci/publish_orcacloud.py
+   ci/test_publish_orcacloud.py
+   GitHub自动发布说明.txt
+   注意：.github 目录前有一个点，必须一起上传。
+4. 在 GitHub 仓库 Code → Add file → Upload files 上传文件夹并提交到 main。
+   也可以在网页分别创建上述完整路径的文件，粘贴对应内容。
+   不要仅把配置 ZIP 上传为 Release 附件，GitHub 不会执行压缩包里的工作流。
+5. 确认 Actions 没有被禁用。如组织限制 OIDC/工作流权限，需要允许此工作流。
+
+以后每次发布
+1. 先提交源码与上述配置，再创建新的 GitHub Release。
+2. 标签用 vX.Y.Z，例如 v0.7.4。必须高于 Orca Cloud 当前版本，并与 wheel 内部版本完全一致。
+   如果 Cloud 已经是 0.7.4，下次需要重新构建 0.7.5，不能只改标签或重命名旧 wheel。
+3. 发布前先附上 Orca_Plate_Queue_win_x86_64.whl，写好更新说明，再点击 Publish release。
+   wheel 必须是当前精简队列插件包。连接组件 ZIP 和源码 ZIP 可以同时放到 GitHub Release。
+4. Actions → Publish queue plugin to Orca Cloud 查看运行结果。
+   成功日志：Orca Cloud accepted queue version X.Y.Z (HTTP 201).
+5. 打开 Orca Cloud 插件页面核对版本。用户在 OrcaSlicer 插件窗口刷新后更新。
+
+此配置的行为
+- 从本次公开 GitHub Release 下载指定名称的 wheel，检查内部版本、文件清单、RECORD 哈希。
+- 不导入、不运行下载的插件，不连接打印机。
+- 检查通过后才向 GitHub 请求短期 OIDC 凭据，使用官方接口上传插件与更新说明。
+- 只上传 wheel 到 Orca Cloud。连接组件继续由用户在 GitHub 下载、单独安装。
+- 不在队列插件运行时增加任何发布、下载或安装能力。
+- 不自动重试提交，避免网络中断时不清楚服务端是否已经接受发布。
+- 当前仅配置此公开仓库及 X.Y.Z 正式版本标签；将 Release 标记为 prerelease 仍会触发发布。
+  测试附件请放在未发布的 Draft，或单独的测试仓库。
+
+常见问题
+- 已发布的 v0.7.3 不会因新增工作流而补发；工作流必须存在于下一次 Release 的标签提交中。
+- 发布后才补传 wheel，触发事件里没有该附件，会失败。应先上传附件再发布。
+- HTTP 401：核对 Orca Cloud 绑定的仓库；必须准确绑定到一个自己拥有的插件。
+- 版本错误：标签必须高于 Cloud 当前版本；包内版本必须与标签一致。
+- GitHub Actions 成功不代表以后免审，插件能力与市场审核规则仍照常适用。
+- 断开 Cloud 的仓库连接可撤销发布授权；禁用工作流可停止自动发布。
+
+本地离线验证（开发者可用，无网络、不会发布）
+python -m unittest ci.test_publish_orcacloud -v
+python ci/publish_orcacloud.py --check-wheel public-release-0.7.4/Orca_Plate_Queue_win_x86_64.whl --tag v0.7.4
+
+当前只准备了配置，尚未修改 GitHub 仓库，也尚未在 Orca Cloud 绑定或发布。

@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path');
 const {bundledFixture}=require('./test_page.cjs');
 const state=bundledFixture();state.data.jobs=[];state.data.previews={};state.setup={};state.swap_plan=[];
-state.build_id='20261101.1';state.connection.devices[0].monitor_epoch='offline-example-history';
+state.build_id='20261101.2';state.connection.devices[0].monitor_epoch='offline-example-history';
 state.components.series.push({series:'02.08.01',kind:'missing',compatible:false,loaded:false});
 state.components.series.sort((a,b)=>a.series.localeCompare(b.series));
 const out=path.join(__dirname,'verification/public-release');fs.mkdirSync(out,{recursive:true});

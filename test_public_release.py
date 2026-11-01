@@ -10,14 +10,14 @@ import sys
 import types
 import unittest
 import zipfile
-from release_info import QUEUE_VERSION
+from release_info import QUEUE_VERSION, CONNECTION_VERSION, CONNECTION_SHA256, CONNECTION_DOWNLOAD_URL
 from test_queue import temporary_directory
 from test_plugin import Base
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/('public-release-'+QUEUE_VERSION)
 WHEEL=OUT/'Orca_Plate_Queue_win_x86_64.whl'
-INSTALLER=OUT/('Orca-Queue-Connection-'+QUEUE_VERSION+'-Windows-x64.zip')
+INSTALLER=OUT/('Orca-Queue-Connection-'+CONNECTION_VERSION+'-Windows-x64.zip')
 
 @unittest.skipUnless(WHEEL.exists(),'Build the split release first')
 class PublicReleaseTests(unittest.TestCase):
@@ -50,7 +50,8 @@ class PublicReleaseTests(unittest.TestCase):
 
     def test_installer_has_exact_native_components_and_full_source(self):
         with zipfile.ZipFile(INSTALLER) as archive:
-            prefix='Orca-Queue-Connection-'+QUEUE_VERSION+'/'
+            prefix='Orca-Queue-Connection-'+CONNECTION_VERSION+'/'
+            self.assertEqual(hashlib.sha256(INSTALLER.read_bytes()).hexdigest(),CONNECTION_SHA256)
             manifest=json.loads(archive.read(prefix+'components.json'))
             self.assertEqual(set(manifest['series']),{'02.03.00','02.08.01','02.08.04'})
             for name,row in manifest['files'].items():
@@ -61,9 +62,15 @@ class PublicReleaseTests(unittest.TestCase):
             self.assertIn(prefix+'ConnectionInstaller.cs',archive.namelist())
             self.assertIn('not a clean-room',archive.read(prefix+'NOTICE').decode())
             self.assertFalse(any(n.endswith('.ps1') for n in archive.namelist()))
-            with zipfile.ZipFile(io.BytesIO(archive.read(prefix+'source-'+QUEUE_VERSION+'.zip'))) as source:
+            with zipfile.ZipFile(io.BytesIO(archive.read(prefix+'source-'+CONNECTION_VERSION+'.zip'))) as source:
                 for required in ('native/queue_bridge.cpp','native/queue_commands.inc','ConnectionInstaller.cs','build_connection_installer.py','ConnectionInstallerTests.cs','vendor/open-bamboo-b14f880.tar.gz','BUILD.txt','LICENSE'):
                     self.assertIn('orca-queue/'+required,source.namelist())
+
+    def test_download_link_pins_the_published_connection_without_executable_download_code(self):
+        page=self.archive.read('orca_plate_queue/plugin_page.html').decode()
+        self.assertIn(CONNECTION_DOWNLOAD_URL,page)
+        self.assertIn(CONNECTION_SHA256,page)
+        self.assertNotIn('/releases/latest/download/',page)
 
     def test_license_and_truthful_permission_declaration(self):
         self.assertIn('GNU AFFERO GENERAL PUBLIC LICENSE',self.archive.read('orca_plate_queue/LICENSE').decode())

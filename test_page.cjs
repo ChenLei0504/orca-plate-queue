@@ -275,16 +275,16 @@ function bundledFixture(){const s=fixture();s.components={available:true,ready:f
 
 
 test('update status verifies both page service build and loaded history capability',async()=>{
- const s=fixture();s.build_id='20261101.1';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261101.1/);assert.match(t.el('buildService').textContent,/已更新.*20261101.1/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
+ const s=fixture();s.build_id='20261101.2';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261101.2/);assert.match(t.el('buildService').textContent,/已更新.*20261101.2/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
 });
 test('new page cannot mistake an old loaded bridge for a complete update',async()=>{
- const s=fixture();s.build_id='20261101.1';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
+ const s=fixture();s.build_id='20261101.2';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
 });
 test('unmatched service or unavailable printer reports unknown update state clearly',async()=>{
  const s=fixture();s.connection={available:false,devices:[],reason:'未登录'};const t=launch(s);try{assert.match(t.el('buildService').textContent,/尚未匹配/);assert.equal(t.el('buildHistory').textContent,'连接组件：等待打印机状态');assert.equal(t.requests.some(r=>r.action==='connection_install'),false)}finally{t.close()}
 });
 test('AMS readiness checks the actually loaded material bridge separately from history',async()=>{
- const s=fixture();s.build_id='20261101.1';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
+ const s=fixture();s.build_id='20261101.2';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
 });
 test('connection guide is read-only in both local and cloud variants',async()=>{
  for(const state of [fixture(),bundledFixture()]){const t=launch(state);try{assert.equal(t.el('openConnection').hidden,false);assert.equal(t.w.document.getElementById('installComponents'),null);assert.equal(t.w.document.getElementById('restoreComponents'),null);t.el('openConnection').click();await tick();assert.equal(t.el('connectionDialog').open,true);assert.match(t.el('connectionDialog').textContent,/独立安装/);assert.equal(t.requests.some(r=>/^connection_/.test(r.action)),false);t.el('closeConnection').click();assert.equal(t.el('connectionDialog').open,false)}finally{t.close()}}
@@ -293,5 +293,8 @@ test('legacy component state cannot enable an installation action',async()=>{
  const s=bundledFixture();s.components.can_install=true;s.components.restore_available=true;s.components.ready=true;const t=launch(s);try{t.el('openConnection').click();await tick();assert.equal(t.w.document.getElementById('installComponents'),null);assert.equal(t.requests.some(r=>['connection_install','connection_restore'].includes(r.action)),false);assert.match(t.el('componentNote').textContent,/不安装、替换或恢复/)}finally{t.close()}
 });
 
+test('connection downloads use a pinned public release without installer commands',async()=>{
+ const t=launch();try{t.el('openConnection').click();await tick();const link=t.el('downloadConnection');assert.equal(link.href,'https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.3/Orca-Queue-Connection-0.7.3-Windows-x64.zip');assert.equal(link.target,'_blank');assert.match(link.rel,/noopener/);assert.match(t.el('connectionRelease').href,/\/releases\/tag\/v0\.7\.3$/);const field=t.el('connectionDownloadUrl');assert.equal(field.readOnly,true);assert.equal(field.value,link.href);field.click();assert.equal(field.selectionStart,0);assert.equal(field.selectionEnd,field.value.length);assert.equal(t.requests.some(r=>['connection_install','connection_restore','submit'].includes(r.action)),false)}finally{t.close()}
+});
 module.exports={fixture,multiFixture,amsFixture,emptyImportFixture,bundledFixture};
 if(require.main===module)(async()=>{for(const [name,fn] of tests){await fn();console.log('PASS',name)}console.log(tests.length+' page workflow tests passed; no real printer calls.');})().catch(e=>{console.error(e);process.exitCode=1});

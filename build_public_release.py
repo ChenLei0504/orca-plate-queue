@@ -13,20 +13,22 @@ import sys
 import zipfile
 
 ROOT=Path(__file__).resolve().parent
-from release_info import QUEUE_VERSION, QUEUE_BUILD_ID
+from release_info import QUEUE_VERSION, QUEUE_BUILD_ID, CONNECTION_VERSION, CONNECTION_DOWNLOAD_URL, CONNECTION_SHA256
 OUT=ROOT/('public-release-'+QUEUE_VERSION)
 WHEEL_NAME='Orca_Plate_Queue_win_x86_64.whl'
-SOURCES=['build_plugin.py','build_public_release.py','connection_components.py','printer_models.py',
+SOURCES=['build_plugin.py','build_public_release.py','printer_models.py',
     'queue_core.py','object_preview.py','queue_domain.py','queue_imports.py','queue_engine.py','task_monitor.py','test_task_monitor.py',
     'queue_fleet.py','native_connection.py','printer_connection.py','swap_support.py','plugin_runtime.py',
-    'plugin_page.html','plugin_page.css','plugin_page.js','test_connection_components.py',
+    'plugin_page.html','plugin_page.css','plugin_page.js',
     'test_native_connection.py','test_engine.py','test_fleet.py','test_object_preview.py','test_page.cjs',
     'test_plugin.py','test_queue.py','test_refill.py','test_setup.py','test_public_release.py','preview_release.cjs','finalize_public_release.py','verification/capture_public_release.py',
     '.ui-test-tools/package.json','.ui-test-tools/package-lock.json',
     'release_info.py','page_assets.py','ConnectionInstaller.cs','ConnectionInstallerTests.cs','build_connection_installer.py','test_split_release.py','vendor/open-bamboo-b14f880.tar.gz','发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt']
 SOURCES+=['native/'+name for name in ('build_bridge.py','build_public_bridges.py','queue_bridge.cpp',
     'queue_commands.inc','queue_cache.cpp','queue_cache.hpp','queue_models.hpp','test_cache.cpp',
-    'test_host.cpp','test_upstream.cpp','test_native.py','test_public_bridges.py','public-build/bridges.json','prior-reviewed-bridges.json')]
+    'test_host.cpp','test_upstream.cpp','test_public_bridges.py','public-build/bridges.json','prior-reviewed-bridges.json')]
+SOURCES+=['.github/workflows/publish-orcacloud.yml','ci/publish_orcacloud.py',
+    'ci/test_publish_orcacloud.py','GitHub自动发布说明.txt']
 
 
 def sha(data):return hashlib.sha256(data).hexdigest()
@@ -152,20 +154,32 @@ def main(upstream_wheel):
         'python -m unittest discover -q\n'
         'npm ci --prefix .ui-test-tools --ignore-scripts; node test_page.cjs\n'
         'python build_connection_installer.py runs fixture-only installer checks.\n'
-        'No tests, build scripts or compilers are inside the queue wheel.\n').encode()
+        'No tests, build scripts or compilers are inside the queue wheel.\n'
+        + 'For queue-only releases, place the published connection ZIP in connection-dist/; obtain it from '+CONNECTION_DOWNLOAD_URL+' and verify SHA256 '+CONNECTION_SHA256+'.\n').encode()
     for version in bridges:
         source_entries[f'orca-queue/native/public-build/{version}/forwarders.inc']=(native/version/'forwarders.inc').read_bytes()
     source_zip=archive_bytes(source_entries)
     resources['source-'+QUEUE_VERSION+'.zip']=source_zip
     resources['LICENSE']=upstream['LICENSE.AGPL'];resources['NOTICE']=notice+upstream['NOTICE']
     resources['licenses/Open-Bamboo-Installer-GPL.txt']=upstream['LICENSE']
-    from build_connection_installer import build
-    build()
-    resources['OrcaQueueConnectionSetup.exe']=(ROOT/'installer-dist/OrcaQueueConnectionSetup.exe').read_bytes()
-    resources['ConnectionInstaller.cs']=(ROOT/'ConnectionInstaller.cs').read_bytes()
-    resources['使用说明.txt']=(ROOT/'连接组件安装说明.txt').read_bytes()
-    installer_name='Orca-Queue-Connection-'+QUEUE_VERSION+'-Windows-x64.zip'
-    installer=archive_bytes({'Orca-Queue-Connection-'+QUEUE_VERSION+'/'+n:d for n,d in resources.items()})
+    installer_name='Orca-Queue-Connection-'+CONNECTION_VERSION+'-Windows-x64.zip'
+    if CONNECTION_VERSION != QUEUE_VERSION:
+        pinned=ROOT/'connection-dist'/installer_name
+        if not pinned.is_file():
+            raise ValueError('Place the published connection ZIP at '+str(pinned)+'; download it manually from '+CONNECTION_DOWNLOAD_URL)
+        installer=pinned.read_bytes()
+        if sha(installer)!=CONNECTION_SHA256:raise ValueError('Published connection installer hash mismatch')
+        with zipfile.ZipFile(io.BytesIO(installer)) as archive:
+            prefix='Orca-Queue-Connection-'+CONNECTION_VERSION+'/'
+            for name in files:
+                if sha(archive.read(prefix+'bin/'+name))!=files[name]['sha256']:raise ValueError('Connection binary changed; a new connection release is required')
+    else:
+        from build_connection_installer import build
+        build()
+        resources['OrcaQueueConnectionSetup.exe']=(ROOT/'installer-dist/OrcaQueueConnectionSetup.exe').read_bytes()
+        resources['ConnectionInstaller.cs']=(ROOT/'ConnectionInstaller.cs').read_bytes()
+        resources['使用说明.txt']=(ROOT/'连接组件安装说明.txt').read_bytes()
+        installer=archive_bytes({'Orca-Queue-Connection-'+CONNECTION_VERSION+'/'+n:d for n,d in resources.items()})
     (OUT/installer_name).write_bytes(installer)
     package=runtime_entries()
     (OUT/WHEEL_NAME).write_bytes(wheel_bytes(package,upstream['LICENSE.AGPL'],notice))
@@ -177,6 +191,7 @@ def main(upstream_wheel):
         tested_host='OrcaSlicer 2.5.0 beta',upstream_revision='b14f880',native_series=list(bridges),
         distribution='queue wheel + separate connection installer + corresponding project source',
         existing_queue_storage='v3 unchanged',publicly_published=False,
+        connection_version=CONNECTION_VERSION,connection_download_url=CONNECTION_DOWNLOAD_URL,
         files={p.name:sha(p.read_bytes()) for p in OUT.iterdir() if p.is_file() and p.name not in ('manifest.json','validation.json','SHA256SUMS.txt')})
     (OUT/'manifest.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf8')
     print('Prepared split release: '+str(OUT))

@@ -1,5 +1,5 @@
 /* Local Orca page bridge. No credentials or HTTP file uploads in this page. */
-const PAGE_BUILD_ID='20261101.1';
+const PAGE_BUILD_ID='20261101.2';
 let latestReply=null,connection={available:false,devices:[]},setup={},swapSettings={},transitions=[];
 let selected=null,busy=false,draggingId=null,pointerDragging=false,editing=null,swapDirty=false;
 let requestSequence=0,toastTimer=null,cardsKey='',queueFilter='pending',actionIntent=null;
@@ -390,6 +390,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('#importOptions'))$('
 $('quickAdd').onclick=()=>guide('jobs');
 $('openConnection').onclick=()=>{renderComponents(latestReply);$('connectionDialog').showModal()};
 $('closeConnection').onclick=()=>$('connectionDialog').close();
+$('connectionDownloadUrl').onclick=()=>$('connectionDownloadUrl').select();
 for(const [id,dialog] of [['closeSettings','settingsDialog'],['closeSwap','swapDialog'],['cancelSwap','swapDialog'],['closeStart','startDialog'],['closeObjects','objectsDialog'],['closeAction','actionDialog'],['cancelAction','actionDialog'],['closePreview','previewDialog'],['closeHelp','helpDialog']])$(id).onclick=()=>$(dialog).close();
 $('pendingTab').onclick=()=>{queueFilter='pending';renderJobs(latestReply?.data||{jobs:[]})};$('historyTab').onclick=()=>{queueFilter='history';renderJobs(latestReply?.data||{jobs:[]})};
 $('configureImports').onclick=openNextImport;

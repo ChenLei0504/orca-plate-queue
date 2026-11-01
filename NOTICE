@@ -1,8 +1,8 @@
-Orca Plate Queue 0.7.3 — split public testing release
+Orca Plate Queue 0.7.4 — split public testing release
 Queue plugin and native bridge modifications: AGPL-3.0-or-later.
 The queue wheel contains readable preferred runtime source; it contains no native DLLs or installers.
 Open Bamboo binaries, their exact corresponding source and original notices are in the separate Connection ZIP.
-The full project source, build scripts and tests are distributed separately in source-0.7.3.zip.
+The full project source, build scripts and tests are distributed separately in source-0.7.4.zip.
 Independent community project; no official endorsement.
 open-bambu-networking-plugin
 Copyright (C) 2026 persano
