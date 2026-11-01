@@ -1,0 +1,26 @@
+{
+  "02.03.00": {
+    "bridge": "bambu_networking_02.03.00.dll",
+    "bridge_sha256": "6eecfc2ed335b0607dec2b95fe8d72080de21ff73d9fef61db5eb7d391d308bc",
+    "backend": "orca_queue_upstream_020300_b14f880.dll",
+    "backend_sha256": "1326f8eec1162e0ccaaa45ca339b32c61aab9914b5d6ba7c58f0ba555a7f4046",
+    "upstream_exports": 138,
+    "source_revision": "b14f880"
+  },
+  "02.08.01": {
+    "bridge": "bambu_networking_02.08.01.dll",
+    "bridge_sha256": "294ccb3fa19f0d705c58e7c04277aac09d38d8e5ba5c2ed5d881074b2674e27b",
+    "backend": "orca_queue_upstream_020801_b14f880.dll",
+    "backend_sha256": "00726166df6495d5e0dc6ba44857b61cecc68003ae316a872a146a6b87e1fc4e",
+    "upstream_exports": 139,
+    "source_revision": "b14f880"
+  },
+  "02.08.04": {
+    "bridge": "bambu_networking_02.08.04.dll",
+    "bridge_sha256": "f27f37f487625d04b0c0110b0e1eccd8e4bfebf852f51d43c12a7761dd00217f",
+    "backend": "orca_queue_upstream_020804_b14f880.dll",
+    "backend_sha256": "eec88c188dcd83c121f94c91f7cb0f3fcee4a21f603597e63ed6dbd6d37b27aa",
+    "upstream_exports": 143,
+    "source_revision": "b14f880"
+  }
+}

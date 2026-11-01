@@ -1,0 +1,45 @@
+Orca Plate Queue 0.7.3 — split public testing release
+Queue plugin and native bridge modifications: AGPL-3.0-or-later.
+The queue wheel contains readable preferred runtime source; it contains no native DLLs or installers.
+Open Bamboo binaries, their exact corresponding source and original notices are in the separate Connection ZIP.
+The full project source, build scripts and tests are distributed separately in source-0.7.3.zip.
+Independent community project; no official endorsement.
+open-bambu-networking-plugin
+Copyright (C) 2026 persano
+
+This repository's installer (open_bambu_networking.py, tools/, docs) is
+licensed under GNU GPL v3 (see LICENSE).
+
+The precompiled native libraries shipped in bin/ and inside the wheels and
+plugin zip (bambu_networking.dll / libbambu_networking.so /
+libbambu_networking.dylib, BambuSource.*, liblive555.*, and their 02.08.01
+and 02.03.00 variants) are NOT written by the author of this plugin. They are built from:
+
+  Upstream project:  https://github.com/ClusterM/open-bamboo-networking
+                     Copyright (C) 2026 Alexey Cluster and contributors
+  Fork with patches: https://github.com/persano/open-bamboo-networking
+                     (fork of the above, adds cloud liveview / AMS sync /
+                      certificate fixes)
+
+Both are licensed under the GNU Affero General Public License v3 (AGPL-3.0).
+The full license text is in LICENSE.AGPL and is also shipped inside every
+wheel (dist-info/LICENSE.AGPL) and inside open_bambu_networking_plugin.zip.
+The AGPL-3.0 license, not the GPL-3.0 license, governs these binaries and
+any work derived from them.
+
+Source revision the shipped binaries were built from:
+  persano/open-bamboo-networking @ b14f880 (2026-10-26, "Merge
+  ClusterM/master into option-b-cloud-rescue")
+Corresponding Source for the binaries is available at no charge from the
+repositories above.
+
+The library embeds a Bambu Lab application client_auth_secret and uses it to
+fetch the slicer signing certificate chain from Bambu's cloud, so cloud
+signing works without manual certificate extraction. That secret is recovered
+from a running Bambu Studio process with tools/extract_key_from_dump.py in
+open-bamboo-networking. This is not a clean-room implementation and
+must not be described as one.
+
+"OrcaSlicer" is a trademark of its respective owners. This project is not
+affiliated with, endorsed by, or associated with Bambu Lab Inc. or the
+OrcaSlicer project.

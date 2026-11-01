@@ -1,0 +1,10 @@
+Python 3.12+, Windows x64, MSVC v142 and Windows SDK 10.0.19041.0.
+Unpack the pinned upstream tar to vendor/sources/open-bamboo-networking-b14f880.
+Supply reviewed Open Bamboo 0.2.43 wheel b14f880; portable compiler under vendor/msvc.
+python native/build_public_bridges.py PATH_TO_UPSTREAM_WHEEL
+python native/test_public_bridges.py
+python build_public_release.py PATH_TO_UPSTREAM_WHEEL
+python -m unittest discover -q
+npm ci --prefix .ui-test-tools --ignore-scripts; node test_page.cjs
+python build_connection_installer.py runs fixture-only installer checks.
+No tests, build scripts or compilers are inside the queue wheel.
