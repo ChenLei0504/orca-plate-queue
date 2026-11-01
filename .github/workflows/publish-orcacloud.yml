@@ -1,0 +1,25 @@
+name: Publish queue plugin to Orca Cloud
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: orcacloud-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'ChenLei0504/orca-plate-queue'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate release attachment and publish queue wheel
+        run: python3 ci/publish_orcacloud.py
