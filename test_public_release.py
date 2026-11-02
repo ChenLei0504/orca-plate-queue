@@ -35,6 +35,14 @@ class PublicReleaseTests(unittest.TestCase):
             data=self.archive.read(name);self.assertEqual(len(data),int(size))
             self.assertEqual(digest,'sha256='+base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b'=').decode())
 
+    def test_page_service_and_release_builds_match(self):
+        from release_info import QUEUE_BUILD_ID
+        page=self.archive.read('orca_plate_queue/plugin_page.html').decode()
+        js=self.archive.read('orca_plate_queue/plugin_page.js').decode()
+        self.assertIn('class="version">'+QUEUE_VERSION+'</span>',page)
+        self.assertIn('精简队列版 · '+QUEUE_BUILD_ID,page)
+        self.assertIn("const PAGE_BUILD_ID='"+QUEUE_BUILD_ID+"'",js)
+
     def test_no_native_installer_development_scripts_or_private_data_in_queue_wheel(self):
         names=self.archive.namelist()
         for name in names:

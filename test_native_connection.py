@@ -104,7 +104,7 @@ class NativeBufferTests(unittest.TestCase):
 
 
 class NativeDiscoveryTests(unittest.TestCase):
-    def discover(self,rows):
+    def discover(self,rows,binding_error=None):
         class Call:
             def __init__(self,fn):self.fn=fn
             def __call__(self,*args):return self.fn(*args)
@@ -120,15 +120,44 @@ class NativeDiscoveryTests(unittest.TestCase):
                 obn_queue_snapshot_v1=Call(snapshot),obn_queue_refresh_v1=Call(lambda:0),obn_queue_command_v1=Call(lambda *a:0))
         def filename(handle,buffer,size):buffer.value=paths[handle];return len(buffer.value)
         kernel=types.SimpleNamespace(GetModuleHandleW=Call(lambda name:1 if name=='OrcaSlicer.dll' else names.get(name,0)),GetModuleFileNameW=Call(filename))
+        real_cdll=ctypes.CDLL
         def existing(name,handle):
-            self.assertIsNone(name)
+            self.assertEqual(name,'')
             self.assertIn(handle,paths)
+            if binding_error is not None:raise binding_error
+            # Exercise the real Python constructor, including its Windows name
+            # checks. Never resolve exports or call functions on the fake handle.
+            with patch.object(ctypes,'_dlopen',side_effect=AssertionError('must not open a DLL')):
+                bound=real_cdll(name,handle=handle)
+            self.assertEqual(bound._handle,handle)
             return dlls[paths[handle]]
         with patch.object(native_connection,'os',types.SimpleNamespace(name='nt')),patch.object(ctypes,'WinDLL',return_value=kernel),patch.object(ctypes,'CDLL',side_effect=existing) as loader:
             bridge=NativeQueueBridge()
             result=bridge._load()
             self.assertIs(bridge._load(),result)
             return result,loader.call_args_list,dlls
+
+    def test_binding_errors_are_actionable_and_do_not_expose_loader_details(self):
+        for error in (TypeError('NoneType fixture private detail'),OSError('fixture private path')):
+            with self.subTest(error=type(error).__name__), self.assertRaises(native_connection.NativeBridgeBindingError) as caught:
+                self.discover([('bambu_networking.dll',True)],binding_error=error)
+            self.assertIn(type(error).__name__,str(caught.exception))
+            self.assertIn('更新队列插件',str(caught.exception))
+            self.assertNotIn('private',str(caught.exception))
+
+    def test_binding_failure_is_distinct_from_invalid_device_json(self):
+        from printer_connection import PrinterConnection
+        def fail():
+            raise native_connection.NativeBridgeBindingError('绑定失败，请更新队列插件。')
+        result=PrinterConnection(types.SimpleNamespace(queue_bridge_v1=types.SimpleNamespace(snapshot=fail))).snapshot()
+        self.assertFalse(result['available'])
+        self.assertEqual(result['devices'],[])
+        self.assertEqual(result['error_code'],'native_binding_failed')
+        self.assertIn('绑定失败',result['reason'])
+        result=PrinterConnection(types.SimpleNamespace(queue_bridge_v1=types.SimpleNamespace(snapshot=lambda:[]))).snapshot()
+        self.assertFalse(result['available'])
+        self.assertNotIn('error_code',result)
+        self.assertIn('无效信息',result['reason'])
 
     def test_each_reviewed_version_attaches_only_to_already_loaded_module(self):
         for name in ('bambu_networking_02.03.00.dll','bambu_networking_02.08.01.dll','bambu_networking_02.08.04.dll','bambu_networking.dll'):

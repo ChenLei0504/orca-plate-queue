@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import time
@@ -68,6 +69,26 @@ class EngineTest(unittest.TestCase):
         d['telemetry'].update(gcode_state=state,subtask_name=tag or a['tag'],subtask_id=identity,gcode_start_time='123')
         self.s.tick()
     def finish(self):self.status('RUNNING');self.status('FINISH')
+
+    def test_unicode_storage_and_source_paths_survive_reopen_and_locking(self):
+        storage=self.root/'中文 用户 [测试]'/'打印队列'
+        source=self.root/'樱花 冰蓝 🌸.3mf';source.write_bytes(b'unicode fixture')
+        service=QueueService(storage,self.transport,self.inspect,self.swap,'',False)
+        self.services.append(service)
+        asset=service.freeze(self.inspect(source))
+        asset.update(id='unicode-job',status='等待',settings=blank_print_settings('fixture-a1'))
+        service.commit(lambda:service.data['jobs'].append(asset))
+        if os.name=='nt':
+            with self.assertRaisesRegex(ValueError,'另一个 Orca'):
+                QueueService(storage,self.transport,self.inspect,self.swap,'',False)
+        service.close()
+        reopened=QueueService(storage,self.transport,self.inspect,self.swap,'',False)
+        self.services.append(reopened)
+        job=reopened.snapshot()['jobs'][0]
+        self.assertEqual(job['name'],source.name)
+        self.assertEqual(Path(job['path']).read_bytes(),b'unicode fixture')
+        self.assertEqual(source.read_bytes(),b'unicode fixture')
+        self.assertFalse(self.transport.requests)
 
     def test_object_preview_is_read_only_cached_and_rechecks_file_hash(self):
         job=self.add()

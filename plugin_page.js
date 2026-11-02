@@ -1,5 +1,5 @@
 /* Local Orca page bridge. No credentials or HTTP file uploads in this page. */
-const PAGE_BUILD_ID='20261101.2';
+const PAGE_BUILD_ID='20261102.1';
 let latestReply=null,connection={available:false,devices:[]},setup={},swapSettings={},transitions=[];
 let selected=null,busy=false,draggingId=null,pointerDragging=false,editing=null,swapDirty=false;
 let requestSequence=0,toastTimer=null,cardsKey='',queueFilter='pending',actionIntent=null;
@@ -105,10 +105,10 @@ function renderConnection(data){
   setPill('printerBadge',fresh?(d.telemetry?.gcode_state==='IDLE'?'空闲':'在线'):d?(d.online?'等待回报':'离线'):'未选择',fresh?'':d?'warning':'muted');
   setPill('cloudBadge',d?.cloud_connected?'Handy 云端已连接':'等待云端连接',d?.cloud_connected?'':'muted');
   $('connectionStatus').textContent=connection.available?'通过 Orca 的 Bambu Cloud 连接。':connection.reason||'正在连接打印机…';
-  const serviceUpdated=latestReply?.build_id===PAGE_BUILD_ID,historyAvailable=connection.available&&!!d?.monitor_epoch;
+  const serviceUpdated=latestReply?.build_id===PAGE_BUILD_ID,historyAvailable=connection.available&&!!d?.monitor_epoch,bindingFailed=connection.error_code==='native_binding_failed';
   $('buildService').textContent=serviceUpdated?'队列服务：已更新（'+PAGE_BUILD_ID+'）':'队列服务：尚未匹配此构建，请重新加载插件';
-  $('buildHistory').textContent=!connection.available||!d?'连接组件：等待打印机状态':historyAvailable?'连接组件：状态历史已启用':'连接组件：旧桥接，需更新组件并完整重启 Orca';
-  $('buildMaterials').textContent=!connection.available||!d?'耗材映射：等待连接检测':connection.material_mapping_ready?'耗材映射：完整 AMS 映射已启用':'耗材映射：旧组件，需更新并完整重启 Orca';
+  $('buildHistory').textContent=bindingFailed?'连接组件：绑定失败，请更新插件并重启 Orca':!connection.available||!d?'连接组件：等待打印机状态':historyAvailable?'连接组件：状态历史已启用':'连接组件：旧桥接，需更新组件并完整重启 Orca';
+  $('buildMaterials').textContent=bindingFailed?'耗材映射：等待桥接恢复':!connection.available||!d?'耗材映射：等待连接检测':connection.material_mapping_ready?'耗材映射：完整 AMS 映射已启用':'耗材映射：旧组件，需更新并完整重启 Orca';
   if(connection.available&&d)$('connectionStatus').textContent+=' '+(historyAvailable?'状态历史已启用。':'旧连接组件，需更新并重启 Orca 以启用状态历史。');
   const reason=!connection.available?(connection.reason||'正在等待 Orca 联网服务。'):data.device_id&&!fresh?'当前机器状态暂不可用。请检查电源和云端连接，再刷新本机状态。':'';
   const fault=deviceFaultText(d),faultNotice=fresh&&fault?(READY_STATES.has(d.telemetry?.gcode_state)?'当前没有运行中的打印任务，但设备仍报告：':'设备报告：')+fault+'。请在 Orca 的“设备 → 助手(HMS)”或 Handy 查看详情。':'';

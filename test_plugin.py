@@ -192,7 +192,7 @@ class PluginTests(unittest.TestCase):
         self.page.config = json.dumps(dict(schema=1, jobs=[], auto_export=False))
         self.page.on_load()
         self.page.on_message(dict(action='refresh'))
-        self.assertIn('0.4 单盘换盘 01.04.20 Y40 S.3mf', self.page.reply['swap_settings']['path'])
+        self.assertEqual(self.page.reply['swap_settings']['path'], self.module.DEFAULT_SWAP_FILE)
         self.assertFalse(self.page.reply['swap_settings']['validated'])
 
     def test_save_custom_swap_and_persist(self):

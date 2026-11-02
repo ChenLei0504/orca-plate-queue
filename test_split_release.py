@@ -19,7 +19,7 @@ class SplitRuntimeTests(unittest.TestCase):
     def test_native_calls_bind_only_existing_handle(self):
         source=Path(__file__).with_name('native_connection.py').read_text(encoding='utf8')
         calls=[n for n in ast.walk(ast.parse(source)) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='CDLL']
-        self.assertEqual(len(calls),1);self.assertIsNone(calls[0].args[0].value);self.assertEqual(calls[0].keywords[0].arg,'handle')
+        self.assertEqual(len(calls),1);self.assertEqual(calls[0].args[0].value,'');self.assertEqual(calls[0].keywords[0].arg,'handle')
         self.assertNotIn('GetModuleFileNameW',source)
 
     def test_runtime_modules_have_no_installation_paths(self):

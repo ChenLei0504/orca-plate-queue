@@ -51,7 +51,7 @@ source += '\nQUEUE_PAGE_HTML = ' + repr(page) + '\n'
 runtime = (root / 'plugin_runtime.py').read_text(encoding='utf-8')
 runtime = re.sub(r'^from (?:queue_core|queue_domain|printer_models|printer_connection|queue_engine|queue_fleet|queue_imports|swap_support|release_info|page_assets) import .*\n', '', runtime, flags=re.M)
 source += runtime
-source = source.replace('from native_connection import NativeQueueBridge', '').replace('from queue_core import plate_materials, plate_thumbnail', '')
+source = source.replace('from native_connection import NativeQueueBridge, NativeBridgeBindingError', '').replace('from queue_core import plate_materials, plate_thumbnail', '')
 source = source.replace('# version = "0.7.2"', '# version = "'+QUEUE_VERSION+'"').replace("QUEUE_BUILD_ID = '20261031.6'", 'QUEUE_BUILD_ID = '+repr(QUEUE_BUILD_ID))
 source = source.replace('QUEUE_BUILD_ID = '+repr(QUEUE_BUILD_ID), 'QUEUE_VERSION = '+repr(QUEUE_VERSION)+'\nQUEUE_BUILD_ID = '+repr(QUEUE_BUILD_ID), 1)
 target = out / 'orca_plate_queue.py'

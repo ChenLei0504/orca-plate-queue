@@ -27,8 +27,8 @@ SOURCES=['build_plugin.py','build_public_release.py','printer_models.py',
 SOURCES+=['native/'+name for name in ('build_bridge.py','build_public_bridges.py','queue_bridge.cpp',
     'queue_commands.inc','queue_cache.cpp','queue_cache.hpp','queue_models.hpp','test_cache.cpp',
     'test_host.cpp','test_upstream.cpp','test_public_bridges.py','public-build/bridges.json','prior-reviewed-bridges.json')]
-SOURCES+=['.github/workflows/publish-orcacloud.yml','ci/publish_orcacloud.py',
-    'ci/test_publish_orcacloud.py','GitHub自动发布说明.txt']
+SOURCES+=['.gitignore','.github/workflows/compatibility.yml','.github/workflows/publish-orcacloud.yml','ci/publish_orcacloud.py',
+    'ci/test_publish_orcacloud.py','GitHub自动发布说明.txt','兼容性检查.txt']
 
 
 def sha(data):return hashlib.sha256(data).hexdigest()
@@ -184,7 +184,7 @@ def main(upstream_wheel):
     package=runtime_entries()
     (OUT/WHEEL_NAME).write_bytes(wheel_bytes(package,upstream['LICENSE.AGPL'],notice))
     (OUT/('source-'+QUEUE_VERSION+'.zip')).write_bytes(source_zip)
-    for name in ('发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt'):
+    for name in ('发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt','兼容性检查.txt'):
         shutil.copyfile(ROOT/name,OUT/name)
     (OUT/'LICENSE').write_bytes(upstream['LICENSE.AGPL']);(OUT/'NOTICE').write_bytes(notice)
     summary=dict(version=QUEUE_VERSION,build_id=QUEUE_BUILD_ID,release_channel='public-testing',platform='windows-x64',

@@ -10,6 +10,10 @@ import time
 from printer_models import canonical_model
 
 
+class NativeBridgeBindingError(RuntimeError):
+    """The loaded module cannot be bound by this Python runtime."""
+
+
 class NativeQueueBridge:
     def __init__(self):
         self._dll = None
@@ -37,7 +41,15 @@ class NativeQueueBridge:
             seen.add(module)
             # Bind the existing host handle directly. Never open a DLL from disk,
             # search plugin folders, resolve an installation path or create an agent.
-            loaded=ctypes.CDLL(None,handle=module)
+            # Windows ctypes inspects name even when handle is supplied (3.12+).
+            # An empty string avoids the None path check; the non-null handle
+            # still bypasses LoadLibrary entirely.
+            try:
+                loaded=ctypes.CDLL('',handle=module)
+            except (TypeError, OSError) as exc:
+                raise NativeBridgeBindingError(
+                    '无法绑定 Orca 已加载的连接组件（'+type(exc).__name__+'）。'
+                    '请更新队列插件并完整退出、重启 Orca。') from None
             try:
                 loaded.obn_queue_abi_version_v1.restype=ctypes.c_uint32
                 if loaded.obn_queue_abi_version_v1()!=1:continue

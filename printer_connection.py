@@ -1,7 +1,7 @@
 """Whitelist snapshots and commands from the in-process native queue bridge."""
 import math
 from printer_models import canonical_model
-from native_connection import NativeQueueBridge
+from native_connection import NativeQueueBridge, NativeBridgeBindingError
 
 
 class PrinterConnection:
@@ -109,6 +109,10 @@ class PrinterConnection:
                         upload_busy=raw.get('upload_busy') is True,
                         refreshing=raw.get('refreshing') is True,
                         reason=raw.get('refresh_error') or ('设备列表读取中…' if raw.get('refreshing') and not devices else '原生桥接已连接，复用 Orca 云端会话。'))
+        except NativeBridgeBindingError as exc:
+            empty['reason'] = str(exc)
+            empty['error_code'] = 'native_binding_failed'
+            return empty
         except RuntimeError as exc:
             empty['reason'] = str(exc)
             return empty
