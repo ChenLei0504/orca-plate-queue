@@ -30,6 +30,9 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
     def get_name(self):
         return '打印队列'
 
+    def get_icon(self):
+        return str(canonical_path(Path(__file__).with_name('queue_tab.svg')))
+
     def get_ui(self):
         return QUEUE_PAGE_HTML
 

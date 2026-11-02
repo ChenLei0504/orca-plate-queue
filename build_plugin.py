@@ -1,4 +1,4 @@
-"""Build one self-contained .py plugin; no installation or execution in Orca."""
+"""Build the combined .py plugin and tab icon; no installation or execution in Orca."""
 import inspect
 from pathlib import Path
 from queue_core import inspect_plate, plate_thumbnail, plate_materials
@@ -59,5 +59,6 @@ source = source.replace('# version = "0.7.2"', '# version = "'+QUEUE_VERSION+'"'
 source = source.replace('QUEUE_BUILD_ID = '+repr(QUEUE_BUILD_ID), 'QUEUE_VERSION = '+repr(QUEUE_VERSION)+'\nQUEUE_BUILD_ID = '+repr(QUEUE_BUILD_ID), 1)
 target = out / 'orca_plate_queue.py'
 compile(source, str(target), 'exec')
+(out / 'queue_tab.svg').write_bytes((root / 'queue_tab.svg').read_bytes())
 target.write_text(source, encoding='utf-8')
 print(target)

@@ -19,7 +19,7 @@ WHEEL_NAME='Orca_Plate_Queue_win_x86_64.whl'
 SOURCES=['build_plugin.py','build_public_release.py','printer_models.py',
     'queue_core.py','object_preview.py','queue_domain.py','queue_imports.py','queue_engine.py','task_monitor.py','test_task_monitor.py',
     'queue_fleet.py','native_connection.py','printer_connection.py','swap_support.py','plugin_runtime.py',
-    'plugin_page.html','plugin_page.css','plugin_page.js',
+    'plugin_page.html','plugin_page.css','plugin_page.js','queue_tab.svg',
     'test_native_connection.py','test_engine.py','test_fleet.py','test_object_preview.py','test_page.cjs',
     'test_plugin.py','test_queue.py','test_refill.py','test_setup.py','test_public_release.py','preview_release.cjs','finalize_public_release.py','verification/capture_public_release.py',
     '.ui-test-tools/package.json','.ui-test-tools/package-lock.json',
@@ -66,7 +66,7 @@ def runtime_entries():
         target='core' if name=='plugin_runtime' else name
         entries['orca_plate_queue/'+target+'.py']=source.encode('utf8')
     entries['orca_plate_queue/__init__.py']=b'from .core import *\n'
-    for name in ('plugin_page.html','plugin_page.css','plugin_page.js','page_messages.js','page_i18n.js'):
+    for name in ('plugin_page.html','plugin_page.css','plugin_page.js','page_messages.js','page_i18n.js','queue_tab.svg'):
         entries['orca_plate_queue/'+name]=(ROOT/name).read_bytes()
     return entries
 
