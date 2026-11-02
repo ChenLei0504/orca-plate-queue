@@ -1,4 +1,5 @@
 """Offline queue design. No printer communication or native library loading."""
+from local_paths import fs_path, canonical_path, replace_file
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import hashlib
@@ -56,8 +57,8 @@ def plate_materials(plate):
 
 
 def inspect_plate(path):
-    path = Path(path).resolve()
-    with zipfile.ZipFile(path) as z:
+    path = canonical_path(path)
+    with zipfile.ZipFile(fs_path(path)) as z:
         gcodes = [n for n in z.namelist() if re.fullmatch(r'Metadata/plate_\d+\.gcode', n)]
         if len(gcodes) != 1:
             raise ValueError('请导出单盘切片文件；文件必须恰好包含一份正式 plate_N.gcode。')
@@ -107,7 +108,7 @@ def inspect_plate(path):
                     filaments=plate_materials(plate), nozzle=meta.get('nozzle_diameters', ''),
                     filament_count=max(filament_count, max((int(f.get('id','0')) for f in plate.findall('filament')), default=0)),
                     bed_type=project.get('curr_bed_type', 'auto'),
-                    sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+                    sha256=hashlib.sha256(fs_path(path).read_bytes()).hexdigest())
 
 
 @dataclass
@@ -282,12 +283,12 @@ class Queue:
                     current=self.current, attempt=self.attempt, stop_intent=self.stop_intent,
                     dirty_plate=self.dirty_plate, log=self.log, transport='simulation')
         tmp = path.with_suffix('.tmp')
-        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-        tmp.replace(path)
+        fs_path(tmp).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+        replace_file(tmp, path)
 
     @classmethod
     def load(cls, path):
-        data = json.loads(Path(path).read_text(encoding='utf-8'))
+        data = json.loads(fs_path(path).read_text(encoding='utf-8'))
         if data.get('schema') != 1 or data.get('transport') != 'simulation':
             raise ValueError('不支持此队列存档。')
         q = cls()

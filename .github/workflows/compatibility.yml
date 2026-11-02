@@ -1,4 +1,4 @@
-name: Windows Python compatibility
+name: Queue compatibility
 
 on:
   push:
@@ -28,3 +28,19 @@ jobs:
         run: python -X utf8 -m unittest discover -q
       - name: Publishing validation tests (offline only)
         run: python -X utf8 -m unittest ci.test_publish_orcacloud -q
+
+  page:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install pinned DOM test dependencies
+        run: npm ci --prefix .ui-test-tools --ignore-scripts
+      - name: Chinese and English UI regression tests
+        run: node test_page.cjs

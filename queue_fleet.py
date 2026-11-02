@@ -1,4 +1,5 @@
 """Separate durable executors per printer, sharing only the cloud upload lane."""
+from local_paths import fs_path, canonical_path, replace_file
 import copy
 import hashlib
 import json
@@ -51,7 +52,7 @@ class FleetConnection:
 
 class QueueFleet:
     def __init__(self, root, connection, inspect_model, inspect_swap, default_swap, service_factory=QueueService):
-        self.root = Path(root).resolve()
+        self.root = canonical_path(root)
         self.connection = FleetConnection(connection)
         self.lock = threading.RLock()
         self.services = {}
@@ -61,7 +62,7 @@ class QueueFleet:
         self.primary = self._open(self.root)
         self.services[self.primary.data['device_id']] = self.primary
         try:
-            index = json.loads(self.index.read_text(encoding='utf8')) if self.index.exists() else {}
+            index = json.loads(fs_path(self.index).read_text(encoding='utf8')) if fs_path(self.index).exists() else {}
             ids = index.get('devices', [])
             if not isinstance(ids, list) or len(ids)>32 or any(not isinstance(i,str) or not 0<len(i)<=128 for i in ids):
                 raise ValueError('多打印机队列目录无效，请核对备份。')
@@ -90,13 +91,13 @@ class QueueFleet:
         payload = dict(devices=[i for i in self.services if i], selected=selected)
         temp = self.index.with_suffix('.part')
         try:
-            with temp.open('w', encoding='utf8') as stream:
+            with fs_path(temp).open('w', encoding='utf8') as stream:
                 json.dump(payload, stream, ensure_ascii=False)
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temp, self.index)
+            replace_file(temp, self.index)
         finally:
-            temp.unlink(missing_ok=True)
+            fs_path(temp).unlink(missing_ok=True)
 
     def select(self, device_id, connection):
         with self.lock:

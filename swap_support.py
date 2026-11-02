@@ -1,4 +1,5 @@
 """A1 swap-file metadata and preflight. Never executes printer movements."""
+from local_paths import fs_path, canonical_path, replace_file
 from printer_models import canonical_model
 from pathlib import Path
 import hashlib
@@ -14,12 +15,12 @@ MOTION_ONLY_SWAP_SHA256 = '4e2e3a0431b8d8bc2e333e65808cfcd71fbdfaec399b2c0508724
 def inspect_swap_file(path, nozzle=0.4):
     if not isinstance(path, str) or not path.strip():
         raise ValueError('请选择套件提供的 A1 独立换盘 3MF 文件。')
-    p = Path(path.strip().strip('"')).resolve()
-    if p.suffix.lower() != '.3mf' or not p.is_file():
+    p = canonical_path(path.strip().strip('"'))
+    if p.suffix.lower() != '.3mf' or not fs_path(p).is_file():
         raise ValueError('换盘文件不存在，或文件不是 .3mf。')
     if type(nozzle) not in (int, float) or nozzle not in (0.2, 0.4, 0.6, 0.8):
         raise ValueError('请选择当前打印机的喷嘴规格：0.2、0.4、0.6 或 0.8。')
-    with zipfile.ZipFile(p) as z:
+    with zipfile.ZipFile(fs_path(p)) as z:
         gcodes = [n for n in z.namelist() if re.fullmatch(r'Metadata/plate_\d+\.gcode', n)]
         if len(gcodes) != 1 or z.getinfo(gcodes[0]).file_size > 300_000_000:
             raise ValueError('请选择只包含一个正式盘任务的独立换盘文件。')
@@ -54,7 +55,7 @@ def inspect_swap_file(path, nozzle=0.4):
                 m.get('key') == 'index' and m.get('value') == plate_index for m in plate.findall('metadata'))), None)
             if plate is not None:
                 filaments = plate_materials(plate)
-        digest = hashlib.sha256(p.read_bytes()).hexdigest()
+        digest = hashlib.sha256(fs_path(p).read_bytes()).hexdigest()
         return dict(path=str(p), name=p.name, sha256=digest,
                     printer=settings['printer_model'], nozzle=nozzle, plate=plate_index,
                     filaments=filaments, filament_count=len(settings.get('filament_type', [])),

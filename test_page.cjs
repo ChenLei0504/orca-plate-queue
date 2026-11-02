@@ -1,8 +1,8 @@
 /* DOM flow tests. This fake bridge never loads a networking library. */
 const {JSDOM}=require('./.ui-test-tools/node_modules/jsdom');
 const fs=require('node:fs'),assert=require('node:assert/strict');
-const html=fs.readFileSync('plugin_page.html','utf8').replace('<script src="plugin_page.js"></script>','');
-const js=fs.readFileSync('plugin_page.js','utf8');
+const html=fs.readFileSync('plugin_page.html','utf8').replace(/<script src="(?:page_messages|page_i18n|plugin_page)\.js"><\/script>/g,'');
+const js=['page_messages.js','page_i18n.js','plugin_page.js'].map(name=>fs.readFileSync(name,'utf8')).join('\n');
 const clone=v=>JSON.parse(JSON.stringify(v));
 const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7xkAAAAASUVORK5CYII=';
 function fixture(){
@@ -20,8 +20,9 @@ function fixture(){
 }
 async function tick(){await new Promise(r=>setImmediate(r))}
 function launch(initial=fixture()){
- let state=clone(initial),listener,requests=[],fileClicks=0,preflightError='',commitError='',upload=null,deferPreflight=false,deferred=[],deferPreview=false,deferredPreview=[];
+ let state=clone(initial),listener,requests=[],fileClicks=0,preflightError='',commitError='',upload=null,deferPreflight=false,deferred=[],deferPreview=false,deferredPreview=[],deferLanguage=false,preferenceError='';
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'https://queue.invalid/'}),w=dom.window;
+ w.scrollTo=function(){};
  w.HTMLElement.prototype.scrollIntoView=function(){};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};
  w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'))};
@@ -29,6 +30,7 @@ function launch(initial=fixture()){
  const reply=r=>listener(r);
  const handle=req=>{
   requests.push(clone(req));
+  if(req.action==='set_language'){if(deferLanguage)return;if(preferenceError){reply({success:false,action:req.action,request_id:req.request_id,note:preferenceError});return}state.language=req.language;state.language_revision=(state.language_revision||0)+1;reply({success:true,action:req.action,request_id:req.request_id,language:state.language,language_revision:state.language_revision});return}
   if(req.action==='object_preview'){if(deferPreview){deferredPreview.push(req);return}reply({success:true,action:req.action,request_id:req.request_id,queue_id:state.queue_id??state.data.device_id,job_id:req.id,preview:clone(state.object_preview||objectPreviewFixture(state.data.jobs.find(j=>j.id===req.id)?.objects||[]))});return}
   if(req.action==='preflight'){
    if(deferPreflight){deferred.push(req);return}
@@ -53,7 +55,7 @@ function launch(initial=fixture()){
  w.orca={onMessage:f=>{listener=f},postMessage:req=>handle(req)};w.eval(js);
  return {w,dom,requests,el:id=>w.document.getElementById(id),state:()=>state,set:v=>{state=clone(v);reply(state)},
   deliver:v=>reply(clone(v)),
-  get fileClicks(){return fileClicks},set deferPreview(v){deferPreview=v},flushPreview(){const req=deferredPreview.shift();if(req)reply({success:true,request_id:req.request_id,queue_id:state.queue_id??state.data.device_id,job_id:req.id,preview:clone(state.object_preview||objectPreviewFixture(state.data.jobs.find(j=>j.id===req.id)?.objects||[]))})},set preflightError(v){preflightError=v},set commitError(v){commitError=v},set deferPreflight(v){deferPreflight=v},
+  get fileClicks(){return fileClicks},set deferLanguage(value){deferLanguage=value},set preferenceError(value){preferenceError=value},set deferPreview(v){deferPreview=v},flushPreview(){const req=deferredPreview.shift();if(req)reply({success:true,request_id:req.request_id,queue_id:state.queue_id??state.data.device_id,job_id:req.id,preview:clone(state.object_preview||objectPreviewFixture(state.data.jobs.find(j=>j.id===req.id)?.objects||[]))})},set preflightError(v){preflightError=v},set commitError(v){commitError=v},set deferPreflight(v){deferPreflight=v},
   flushPreflight(){const req=deferred.shift();if(req){const out=clone(state);Object.assign(out,{action:req.action,request_id:req.request_id});reply(out)}},
   close:()=>w.close()};
 }
@@ -275,19 +277,19 @@ function bundledFixture(){const s=fixture();s.components={available:true,ready:f
 
 
 test('update status verifies both page service build and loaded history capability',async()=>{
- const s=fixture();s.build_id='20261102.1';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261102.1/);assert.match(t.el('buildService').textContent,/已更新.*20261102.1/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.3';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261102.3/);assert.match(t.el('buildService').textContent,/已更新.*20261102.3/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
 });
 test('new page cannot mistake an old loaded bridge for a complete update',async()=>{
- const s=fixture();s.build_id='20261102.1';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.3';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
 });
 test('unmatched service or unavailable printer reports unknown update state clearly',async()=>{
  const s=fixture();s.connection={available:false,devices:[],reason:'未登录'};const t=launch(s);try{assert.match(t.el('buildService').textContent,/尚未匹配/);assert.equal(t.el('buildHistory').textContent,'连接组件：等待打印机状态');assert.equal(t.requests.some(r=>r.action==='connection_install'),false)}finally{t.close()}
 });
 test('AMS readiness checks the actually loaded material bridge separately from history',async()=>{
- const s=fixture();s.build_id='20261102.1';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.3';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
 });
 test('native binding failure is shown separately from waiting for telemetry',async()=>{
- const s=fixture();s.build_id='20261102.1';s.connection={available:false,devices:[],error_code:'native_binding_failed',reason:'无法绑定 Orca 已加载的连接组件（TypeError）。请更新队列插件并完整退出、重启 Orca。'};const t=launch(s);try{assert.match(t.el('buildHistory').textContent,/绑定失败/);assert.equal(t.el('buildMaterials').textContent,'耗材映射：等待桥接恢复');assert.match(t.el('bridgeNotice').textContent,/TypeError/);assert.equal(t.requests.some(r=>['start','submit','connection_install'].includes(r.action)),false)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.3';s.connection={available:false,devices:[],error_code:'native_binding_failed',reason:'无法绑定 Orca 已加载的连接组件（TypeError）。请更新队列插件并完整退出、重启 Orca。'};const t=launch(s);try{assert.match(t.el('buildHistory').textContent,/绑定失败/);assert.equal(t.el('buildMaterials').textContent,'耗材映射：等待桥接恢复');assert.match(t.el('bridgeNotice').textContent,/TypeError/);assert.equal(t.requests.some(r=>['start','submit','connection_install'].includes(r.action)),false)}finally{t.close()}
 });
 test('connection guide is read-only in both local and cloud variants',async()=>{
  for(const state of [fixture(),bundledFixture()]){const t=launch(state);try{assert.equal(t.el('openConnection').hidden,false);assert.equal(t.w.document.getElementById('installComponents'),null);assert.equal(t.w.document.getElementById('restoreComponents'),null);t.el('openConnection').click();await tick();assert.equal(t.el('connectionDialog').open,true);assert.match(t.el('connectionDialog').textContent,/独立安装/);assert.equal(t.requests.some(r=>/^connection_/.test(r.action)),false);t.el('closeConnection').click();assert.equal(t.el('connectionDialog').open,false)}finally{t.close()}}
@@ -299,5 +301,78 @@ test('legacy component state cannot enable an installation action',async()=>{
 test('connection downloads use a pinned public release without installer commands',async()=>{
  const t=launch();try{t.el('openConnection').click();await tick();const link=t.el('downloadConnection');assert.equal(link.href,'https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.3/Orca-Queue-Connection-0.7.3-Windows-x64.zip');assert.equal(link.target,'_blank');assert.match(link.rel,/noopener/);assert.match(t.el('connectionRelease').href,/\/releases\/tag\/v0\.7\.3$/);const field=t.el('connectionDownloadUrl');assert.equal(field.readOnly,true);assert.equal(field.value,link.href);field.click();assert.equal(field.selectionStart,0);assert.equal(field.selectionEnd,field.value.length);assert.equal(t.requests.some(r=>['connection_install','connection_restore','submit'].includes(r.action)),false)}finally{t.close()}
 });
+async function chooseLanguage(t,language){t.el('languageSelect').value=language;t.el('languageSelect').dispatchEvent(new t.w.Event('change'));await tick()}
+function asciiFixture(){const s=amsFixture();s.connection.devices[0].name='Test A1';s.connection.devices[0].slots.forEach((slot,i)=>slot.label='AMS 1 / '+(i+1));s.data.jobs.forEach((job,i)=>{job.name='Part '+(i+1)+'.gcode.3mf';job.objects.forEach((object,n)=>object.name='Object '+(n+1))});s.swap_settings.name='swap.gcode.3mf';return s}
+test('UI defaults to Simplified Chinese independently of browser locale',async()=>{
+ const t=launch();try{assert.equal(t.w.document.documentElement.lang,'zh-CN');assert.equal(t.el('languageSelect').value,'zh-CN');assert.equal(t.w.document.title,'打印队列');assert.match(t.el('quickAdd').textContent,/加入任务/);assert.equal(t.requests.some(r=>r.action==='set_language'),false)}finally{t.close()}
+});
+test('English translates static labels attributes dynamic statuses and backend errors',async()=>{
+ const s=asciiFixture();s.connection.reason='尚未接通设备连接。';const t=launch(s);try{await chooseLanguage(t,'en');assert.equal(t.w.document.documentElement.lang,'en');assert.equal(t.w.document.title,'Print Queue');assert.equal(t.el('quickAdd').textContent.trim(),'Add jobs');assert.equal(t.el('languageSelect').getAttribute('aria-label'),'Interface language');assert.match(t.el('summary').textContent,/plates pending/);assert.equal(t.el('refresh').getAttribute('title'),'Refresh queue');assert.match(t.el('path').placeholder,/single-plate/);assert.match(t.el('deviceTelemetry').textContent,/Nozzle/);assert.equal(t.w.QueueI18n.message('无法绑定 Orca 已加载的连接组件（TypeError）。请更新队列插件并完整退出、重启 Orca。'),"Cannot bind Orca's loaded connection component (TypeError). Update the queue plugin and fully exit and restart Orca.");assert.equal(t.w.QueueI18n.message('本机编码不能表示插件存储路径（-7）'),'The system code page cannot represent the plugin storage path (-7)');assert.equal(t.requests.filter(r=>!['refresh','set_language'].includes(r.action)).length,0)}finally{t.close()}
+});
+test('a saved English preference is applied on the first server state',async()=>{
+ const s=asciiFixture();s.language='en';s.language_revision=0;const t=launch(s);try{assert.equal(t.w.document.documentElement.lang,'en');assert.equal(t.el('quickAdd').textContent.trim(),'Add jobs');assert.equal(t.requests.some(r=>r.action==='set_language'),false)}finally{t.close()}
+});
+test('English job filters keep original protocol statuses and payload IDs',async()=>{
+ const s=asciiFixture();s.data.jobs[1].status='已完成';const t=launch(s);try{await chooseLanguage(t,'en');assert.equal(t.el('pendingCount').textContent,'1');assert.equal(t.el('historyCount').textContent,'1');t.el('historyTab').click();assert.equal(t.el('jobs').querySelectorAll('article').length,1);assert.match(t.el('jobs').textContent,/Completed/);assert.equal(t.state().data.jobs[1].status,'已完成');assert.equal(t.state().data.jobs[0].status,'等待')}finally{t.close()}
+});
+test('language changes preserve user filenames printer names and object names',async()=>{
+ const s=asciiFixture();s.connection.devices[0].name='打印中工作台';s.data.jobs[0].name='等待_中文零件.gcode.3mf';const t=launch(s);try{await chooseLanguage(t,'en');assert.match(t.el('queueName').textContent,/打印中工作台/);assert.match(t.el('jobs').textContent,/等待_中文零件\.gcode\.3mf/);assert.equal(t.state().data.jobs[0].name,'等待_中文零件.gcode.3mf')}finally{t.close()}
+});
+test('switching language preserves unsaved copies slot mappings backups and options',async()=>{
+ const s=asciiFixture();const draft=clone(s.data.jobs[0]);draft.id='draft-locale';draft.copies=2;s.data.drafts=[draft];const t=launch(s);try{t.w.openSettings(draft.id);t.el('importCopies').value='7';t.el('timelapse').checked=true;const backup=t.el('materialMappings').querySelector('input[type=checkbox]');backup.click();const before=t.state();await chooseLanguage(t,'en');assert.equal(t.el('settingsDialog').open,true);assert.equal(t.el('importCopies').value,'7');assert.equal(t.el('timelapse').checked,true);assert.equal(t.el('materialMappings').querySelector('input[type=checkbox]').checked,true);assert.match(t.el('settingsTitle').textContent,/Configure filament/);assert.deepEqual(t.state().data,before.data);await chooseLanguage(t,'zh-CN');assert.equal(t.el('importCopies').value,'7');assert.equal(t.el('timelapse').checked,true);assert.match(t.el('settingsTitle').textContent,/配置耗材/);assert.equal(t.requests.some(r=>['save_settings','commit_import'].includes(r.action)),false)}finally{t.close()}
+});
+test('language changes preserve unsaved swap file and continuation choices',async()=>{
+ const t=launch(asciiFixture());try{t.w.openSwap();t.el('swapPath').value='C:/用户文件/自定义.3mf';t.el('swapPath').dispatchEvent(new t.w.Event('input'));t.el('swapAuto').checked=true;await chooseLanguage(t,'en');assert.equal(t.el('swapDialog').open,true);assert.equal(t.el('swapPath').value,'C:/用户文件/自定义.3mf');assert.equal(t.el('swapAuto').checked,true);assert.equal(t.el('plateMode').value,'automatic');assert.equal(t.requests.some(r=>r.action==='save_swap'),false)}finally{t.close()}
+});
+test('language changes do not rerun preflight or clear readiness confirmation',async()=>{
+ const s=asciiFixture();s.setup={job1:{configured:true,ready:true},job2:{configured:true,ready:true}};const t=launch(s);try{t.w.openStart('start');await tick();t.el('bedClear').checked=true;t.el('bedClear').dispatchEvent(new t.w.Event('change'));const checks=t.requests.filter(r=>r.action==='preflight').length;await chooseLanguage(t,'en');assert.equal(t.el('startDialog').open,true);assert.equal(t.el('bedClear').checked,true);assert.match(t.el('startTitle').textContent,/Preflight/);assert.equal(t.requests.filter(r=>r.action==='preflight').length,checks);assert.equal(t.requests.some(r=>r.action==='start'),false)}finally{t.close()}
+});
+test('object selection and viewport survive language changes without native skips',async()=>{
+ const t=launch(skipFixture());try{await t.w.openObjects();clickObject(t,'1419');const svg=t.el('objectsPreview').querySelector('svg');svg.setAttribute('viewBox','50 50 100 100');await chooseLanguage(t,'en');assert.equal(t.el('objectsDialog').open,true);assert.equal(t.el('objectsList').querySelector('input[value="1419"]').checked,true);assert.equal(t.el('objectsPreview').querySelector('svg').getAttribute('viewBox'),'50 50 100 100');assert.match(t.el('objectsTitle').textContent,/Skip objects/);assert.equal(t.requests.some(r=>['skip_objects','end_current','stop_queue'].includes(r.action)),false)}finally{t.close()}
+});
+test('old language revisions cannot undo a saved choice',async()=>{
+ const s=asciiFixture();s.language='zh-CN';s.language_revision=0;const t=launch(s);try{await chooseLanguage(t,'en');const stale=clone(t.state());stale.language='zh-CN';stale.language_revision=0;t.set(stale);assert.equal(t.el('languageSelect').value,'en');assert.equal(t.w.document.documentElement.lang,'en')}finally{t.close()}
+});
+test('unsupported locale preferences use Chinese without sending commands',async()=>{
+ const s=asciiFixture();s.language='fr';const t=launch(s);try{assert.equal(t.w.document.documentElement.lang,'zh-CN');assert.equal(t.el('languageSelect').value,'zh-CN');assert.equal(t.requests.some(r=>r.action==='set_language'),false)}finally{t.close()}
+});
+test('English interface has no untranslated application text in all static dialogs',async()=>{
+ const t=launch(asciiFixture());try{await chooseLanguage(t,'en');const walker=t.w.document.createTreeWalker(t.w.document.body,t.w.NodeFilter.SHOW_TEXT);const missing=[];let n;while((n=walker.nextNode())){if(n.parentElement.closest('script,style,#languageSelect'))continue;if(/[\u3400-\u9fff]/.test(n.nodeValue))missing.push(n.nodeValue.trim())}assert.deepEqual(missing,[])}finally{t.close()}
+});
+
+test('language preference is global across independent printer queues',async()=>{
+ const t=launch(multiFixture());try{const active=clone(t.state().data.active);await chooseLanguage(t,'en');await t.w.selectQueue('fixture-p1');await tick();assert.equal(t.el('languageSelect').value,'en');assert.equal(t.w.document.documentElement.lang,'en');assert.match(t.el('swapFileName').textContent,/Replace or clear/);assert.deepEqual(t.state().queue_states['fixture-a1'].data.active,active);assert.equal(t.requests.some(r=>['start','stop_queue','end_current','skip_objects'].includes(r.action)),false)}finally{t.close()}
+});
+test('failed preference save rolls back the selector and keeps unsaved form data',async()=>{
+ const t=launch(asciiFixture());try{t.w.openSwap();t.el('swapPath').value='C:/my-new-file.3mf';t.preferenceError='语言设置保存失败，请重试。';await chooseLanguage(t,'en');assert.equal(t.el('languageSelect').value,'zh-CN');assert.equal(t.w.document.documentElement.lang,'zh-CN');assert.equal(t.el('swapPath').value,'C:/my-new-file.3mf');assert.equal(t.el('feedback').hidden,false);assert.equal(t.requests.some(r=>r.action==='save_swap'),false)}finally{t.close()}
+});
+test('rapid language choices and out of order acknowledgements keep the last choice',async()=>{
+ const t=launch(asciiFixture());try{t.deferLanguage=true;await chooseLanguage(t,'en');await chooseLanguage(t,'zh-CN');await chooseLanguage(t,'en');const requests=t.requests.filter(r=>r.action==='set_language');assert.equal(requests.length,3);for(const [index,revision] of [[2,3],[0,1],[1,2]]){t.deliver({success:true,action:'set_language',request_id:requests[index].request_id,language:requests[index].language,language_revision:revision});await tick()}assert.equal(t.el('languageSelect').value,'en');assert.equal(t.w.document.documentElement.lang,'en');const stale=clone(t.state());stale.language='zh-CN';stale.language_revision=0;t.set(stale);assert.equal(t.el('languageSelect').value,'en')}finally{t.close()}
+});
+test('backend messages keep file paths intact and can be retranslated both ways',async()=>{
+ const t=launch(asciiFixture());try{await chooseLanguage(t,'en');const original='文件副本校验失败，已禁止发送：C:/中文 用户/打印中.gcode.3mf';const translated=t.w.QueueI18n.message(original);assert.equal(translated,'Cached file failed verification; sending blocked: C:/中文 用户/打印中.gcode.3mf');assert.equal(t.w.QueueI18n.message('11-02 12:34:56 队列已暂停；未向打印机发送停止指令。'),'11-02 12:34:56 Queue paused; no stop command was sent to the printer.');await chooseLanguage(t,'zh-CN');assert.equal(t.w.QueueI18n.message(translated),original)}finally{t.close()}
+});
+
+test('English settings submit the original AMS source and slot IDs',async()=>{
+ const t=launch(asciiFixture());try{await chooseLanguage(t,'en');t.w.openSettings('job1');const second=t.el('materialMappings').querySelectorAll('button.material-slot')[1];assert.ok(second);second.click();t.el('savePrintSettings').click();await tick();const sent=t.requests.find(r=>r.action==='save_settings');assert.equal(sent.settings.source,'ams');assert.equal(sent.settings.device_id,'fixture-a1');assert.equal(sent.settings.mapping['9'],'ams/0/tray/1');assert.equal(typeof sent.settings.options.bed_leveling,'boolean')}finally{t.close()}
+});
+test('English object skipping submits native numeric IDs unchanged',async()=>{
+ const t=launch(skipFixture());try{await chooseLanguage(t,'en');await t.w.openObjects();clickObject(t,'1419');t.el('confirmSkip').click();await tick();assert.deepEqual(t.requests.find(r=>r.action==='skip_objects').objects,[1419])}finally{t.close()}
+});
+test('completion review keeps its confirmation and does not recheck when language changes',async()=>{
+ const t=launch(completedRecoveryFixture());try{t.el('completeContinue').click();await tick();t.el('completeConfirmed').checked=true;t.el('completeConfirmed').dispatchEvent(new t.w.Event('change'));const before=t.requests.filter(r=>r.action==='preflight'&&r.completion_review).length;assert.equal(before,1);await chooseLanguage(t,'en');assert.equal(t.el('completeDialog').open,true);assert.equal(t.el('completeConfirmed').checked,true);assert.match(t.el('completeDescription').textContent,/successful end/);assert.equal(t.requests.filter(r=>r.action==='preflight'&&r.completion_review).length,before);assert.equal(t.requests.some(r=>r.action==='complete_continue'),false)}finally{t.close()}
+});
+test('formatters support future build numbers and empty translated suffixes safely',async()=>{
+ const t=launch(asciiFixture());try{await chooseLanguage(t,'en');assert.equal(t.w.QueueI18n.message('精简队列版 · 20300101.1'),'Queue edition · 20300101.1');assert.equal(t.w.QueueI18n.message('页面构建：精简队列版 · 20300101.1'),'Page build: Queue edition · 20300101.1');assert.equal(t.w.QueueI18n.tr(' 层'),'');assert.equal(t.w.QueueI18n.message(''),'');assert.equal(t.w.QueueI18n.duration(3660),'1 h 1 min');assert.equal(t.w.QueueI18n.duration(null),'Unknown duration');await chooseLanguage(t,'zh-CN');assert.equal(t.w.QueueI18n.duration(3660),'1 小时 1 分钟');assert.equal(t.w.QueueI18n.message(''),'')}finally{t.close()}
+});
+
+test('English readiness uses stable flags rather than comparing localized labels',async()=>{
+ const s=asciiFixture();s.data.jobs=s.data.jobs.slice(0,1);const t=launch(s);try{await chooseLanguage(t,'en');assert.match(t.el('readinessList').textContent,/No swap required this round/);await chooseLanguage(t,'zh-CN');assert.match(t.el('readinessList').textContent,/本轮无需换盘/)}finally{t.close()}
+});
+
+test('opening another staged file uses its own copy count after a language change',async()=>{
+ const s=asciiFixture();const a=clone(s.data.jobs[0]),b=clone(s.data.jobs[1]);a.id='draft-a';a.copies=2;b.id='draft-b';b.copies=5;s.data.drafts=[a,b];const t=launch(s);try{t.w.openSettings('draft-a');t.el('importCopies').value='9';await chooseLanguage(t,'en');assert.equal(t.el('importCopies').value,'9');t.el('settingsDialog').close();t.w.openSettings('draft-b');assert.equal(t.el('importCopies').value,'5');await chooseLanguage(t,'zh-CN');assert.equal(t.el('importCopies').value,'5')}finally{t.close()}
+});
+
 module.exports={fixture,multiFixture,amsFixture,emptyImportFixture,bundledFixture};
 if(require.main===module)(async()=>{for(const [name,fn] of tests){await fn();console.log('PASS',name)}console.log(tests.length+' page workflow tests passed; no real printer calls.');})().catch(e=>{console.error(e);process.exitCode=1});

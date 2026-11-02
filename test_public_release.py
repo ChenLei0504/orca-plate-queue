@@ -74,6 +74,21 @@ class PublicReleaseTests(unittest.TestCase):
                 for required in ('native/queue_bridge.cpp','native/queue_commands.inc','ConnectionInstaller.cs','build_connection_installer.py','ConnectionInstallerTests.cs','vendor/open-bamboo-b14f880.tar.gz','BUILD.txt','LICENSE'):
                     self.assertIn('orca-queue/'+required,source.namelist())
 
+    def test_locale_assets_and_private_preferences_are_shipped_together(self):
+        names=set(self.archive.namelist())
+        for name in ('page_messages.js','page_i18n.js','page_preferences.py'):
+            self.assertIn('orca_plate_queue/'+name,names)
+        page=self.archive.read('orca_plate_queue/plugin_page.html').decode()
+        self.assertIn('id="languageSelect"',page)
+        self.assertIn('value="zh-CN"',page)
+        self.assertIn('value="en"',page)
+        assets=self.archive.read('orca_plate_queue/page_assets.py').decode()
+        self.assertIn('page_messages.js',assets)
+        self.assertIn('page_i18n.js',assets)
+        prefs=self.archive.read('orca_plate_queue/page_preferences.py').decode()
+        self.assertIn("'page-preferences.json'",prefs)
+        self.assertNotIn('APPDATA',prefs)
+
     def test_download_link_pins_the_published_connection_without_executable_download_code(self):
         page=self.archive.read('orca_plate_queue/plugin_page.html').decode()
         self.assertIn(CONNECTION_DOWNLOAD_URL,page)
@@ -120,6 +135,10 @@ class PublicReleaseTests(unittest.TestCase):
                     self.assertEqual(page.reply['connection_mode'],'external');self.assertEqual(page.reply['version'],QUEUE_VERSION)
                     self.assertEqual(page._service.snapshot(),before);self.assertFalse((root/'plugins').exists())
                     self.assertIn('独立安装器',page.get_ui())
+                    self.assertNotIn('<script src=',page.get_ui())
+                    page.on_message(dict(action='set_language',language='en'))
+                    self.assertTrue(page.reply['success']);self.assertEqual(page.reply['language'],'en')
+                    self.assertEqual(page._service.snapshot(),before)
                 finally:page.on_unload()
             finally:
                 sys.path.remove(str(root/'wheel'))

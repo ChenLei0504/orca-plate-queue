@@ -1,4 +1,5 @@
 """Persistent queue executor. No Orca UI/config APIs are called by its worker."""
+from local_paths import fs_path, canonical_path, replace_file
 import copy
 import hashlib
 import json
@@ -21,11 +22,11 @@ class QueueService:
     IDLE = {'IDLE', 'FINISH', 'FAILED'}
 
     def __init__(self, storage, connection, inspect_model, inspect_swap, default_swap, start_worker=True, clock=time.time):
-        self.root = Path(storage).resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        self.root = canonical_path(storage)
+        fs_path(self.root).mkdir(parents=True, exist_ok=True)
         self.assets = self.root / 'assets'
-        self.assets.mkdir(exist_ok=True)
-        self._lease = (self.root / 'executor.lock').open('a+b')
+        fs_path(self.assets).mkdir(exist_ok=True)
+        self._lease = fs_path(self.root / 'executor.lock').open('a+b')
         self._lease.seek(0)
         if os.name == 'nt':
             import msvcrt
@@ -39,7 +40,7 @@ class QueueService:
         self.lock = threading.RLock()
         self.closed = threading.Event()
         self.fatal = ''
-        self.db = sqlite3.connect(str(self.root / 'queue-v3.sqlite3'), check_same_thread=False)
+        self.db = sqlite3.connect(str(fs_path(self.root / 'queue-v3.sqlite3')), check_same_thread=False)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
         self.db.execute('CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)')
@@ -130,18 +131,18 @@ class QueueService:
         """Keep immutable, content-addressed input; never re-open a user's file to print."""
         source = Path(info['path'])
         target = self.assets / (info['sha256'] + '.3mf')
-        if not target.exists():
+        if not fs_path(target).exists():
             pending = self.assets / (uuid.uuid4().hex + '.part')
             try:
-                with source.open('rb') as src, pending.open('xb') as dst:
+                with fs_path(source).open('rb') as src, fs_path(pending).open('xb') as dst:
                     shutil.copyfileobj(src, dst, 1024*1024)
                     dst.flush()
                     os.fsync(dst.fileno())
                 if self.digest(pending) != info['sha256']:
                     raise ValueError('导入期间源文件发生变化，请重新导入。')
-                os.replace(pending, target)
+                replace_file(pending, target)
             finally:
-                pending.unlink(missing_ok=True)
+                fs_path(pending).unlink(missing_ok=True)
         if self.digest(target) != info['sha256']:
             raise ValueError('队列中的本地文件副本已变化。')
         result = copy.deepcopy(info)
@@ -151,7 +152,7 @@ class QueueService:
     @staticmethod
     def digest(path):
         h = hashlib.sha256()
-        with Path(path).open('rb') as stream:
+        with fs_path(path).open('rb') as stream:
             for chunk in iter(lambda: stream.read(1024*1024), b''):
                 h.update(chunk)
         return h.hexdigest()
@@ -484,7 +485,7 @@ class QueueService:
             self._note('发送：' + asset['name'])
         self.commit(prepare)
         self._request(dict(action='submit', device_id=self.data['device_id'], tag=tag,
-            path=asset['path'], sha256=asset['sha256'], plate=int(fresh['plate']), ams_mapping=mapping,
+            path=str(fs_path(asset['path'])), sha256=asset['sha256'], plate=int(fresh['plate']), ams_mapping=mapping,
             ams_mapping_info=detail,
             use_ams=settings['source']=='ams', options=settings['options'],
             bed_type=fresh.get('bed_type','auto')), 'request_id')

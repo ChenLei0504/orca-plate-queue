@@ -23,12 +23,17 @@ SOURCES=['build_plugin.py','build_public_release.py','printer_models.py',
     'test_native_connection.py','test_engine.py','test_fleet.py','test_object_preview.py','test_page.cjs',
     'test_plugin.py','test_queue.py','test_refill.py','test_setup.py','test_public_release.py','preview_release.cjs','finalize_public_release.py','verification/capture_public_release.py',
     '.ui-test-tools/package.json','.ui-test-tools/package-lock.json',
-    'release_info.py','page_assets.py','ConnectionInstaller.cs','ConnectionInstallerTests.cs','build_connection_installer.py','test_split_release.py','vendor/open-bamboo-b14f880.tar.gz','发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt']
+    'release_info.py','local_paths.py','page_assets.py','page_preferences.py','page_messages.js','page_i18n.js','ConnectionInstaller.cs','ConnectionInstallerTests.cs','build_connection_installer.py','test_split_release.py','test_page_preferences.py','test_local_paths.py','vendor/open-bamboo-b14f880.tar.gz','发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt']
 SOURCES+=['native/'+name for name in ('build_bridge.py','build_public_bridges.py','queue_bridge.cpp',
     'queue_commands.inc','queue_cache.cpp','queue_cache.hpp','queue_models.hpp','test_cache.cpp',
     'test_host.cpp','test_upstream.cpp','test_public_bridges.py','public-build/bridges.json','prior-reviewed-bridges.json')]
 SOURCES+=['.gitignore','.github/workflows/compatibility.yml','.github/workflows/publish-orcacloud.yml','ci/publish_orcacloud.py',
     'ci/test_publish_orcacloud.py','GitHub自动发布说明.txt','兼容性检查.txt']
+
+
+SOURCES+=['tools/legacy_path_host/README.md','tools/legacy_path_host/LegacyPythonHost.cs','tools/legacy_path_host/legacy-host.manifest','tools/legacy_path_host/verify_legacy_paths.py']
+SOURCES+=['README.md','docs/render_screenshots.cjs','docs/capture_screenshots.py']
+SOURCES+=['docs/images/'+name for name in ('icon.png','overview.png','materials.png','objects.png','swap.png','connection.png','overview-en.png','materials-en.png','objects-en.png','swap-en.png','connection-en.png')]
 
 
 def sha(data):return hashlib.sha256(data).hexdigest()
@@ -50,9 +55,9 @@ def archive_bytes(entries):
 
 
 def runtime_entries():
-    modules=['queue_core','object_preview','printer_models','swap_support','queue_domain',
+    modules=['local_paths','queue_core','object_preview','printer_models','swap_support','queue_domain',
         'native_connection','printer_connection','queue_imports','task_monitor','queue_engine',
-        'queue_fleet','page_assets','release_info']
+        'queue_fleet','page_assets','page_preferences','release_info']
     entries={}
     for name in modules+['plugin_runtime']:
         source=public_source((ROOT/(name+'.py')).read_text(encoding='utf8'))
@@ -61,7 +66,7 @@ def runtime_entries():
         target='core' if name=='plugin_runtime' else name
         entries['orca_plate_queue/'+target+'.py']=source.encode('utf8')
     entries['orca_plate_queue/__init__.py']=b'from .core import *\n'
-    for name in ('plugin_page.html','plugin_page.css','plugin_page.js'):
+    for name in ('plugin_page.html','plugin_page.css','plugin_page.js','page_messages.js','page_i18n.js'):
         entries['orca_plate_queue/'+name]=(ROOT/name).read_bytes()
     return entries
 

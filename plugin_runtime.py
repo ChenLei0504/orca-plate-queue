@@ -1,4 +1,5 @@
 """Source fragment appended to a standalone Orca plugin by build_plugin.py."""
+from local_paths import fs_path, canonical_path, replace_file
 import copy
 import json
 import os
@@ -19,6 +20,7 @@ from queue_imports import LocalImports
 from swap_support import DEFAULT_SWAP_FILE, inspect_swap_file, swap_plan
 from release_info import QUEUE_VERSION, QUEUE_BUILD_ID
 from page_assets import QUEUE_PAGE_HTML
+from page_preferences import PagePreferences
 
 if os.name != 'nt' or struct.calcsize('P') != 8:
     raise RuntimeError('Orca Plate Queue 仅支持 Windows x64。')
@@ -64,6 +66,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
         self._connection = PrinterConnection(None)
         try:
             self._storage = str(orca.host.plugin.storage())
+            self._preferences = PagePreferences(self._storage)
             self._fleet = QueueFleet(Path(self._storage) / 'v3', self._connection,
                 inspect_plate, inspect_swap_file, DEFAULT_SWAP_FILE, service_factory=QueueService)
             self._service = self._fleet.selected
@@ -110,9 +113,9 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
             self._cleanup_copy(info)
             raise
         if display_name:
-            raw = Path(info['source_path']).resolve()
-            if raw.parent == (Path(self._storage)/'queue_uploads').resolve() and re.fullmatch(r'queue-upload-[0-9a-f]{32}\.3mf', raw.name):
-                raw.unlink(missing_ok=True)
+            raw = canonical_path(info['source_path'])
+            if raw.parent == canonical_path(Path(self._storage)/'queue_uploads') and re.fullmatch(r'queue-upload-[0-9a-f]{32}\.3mf', raw.name):
+                fs_path(raw).unlink(missing_ok=True)
         return f"已读取：{info['name']} × {copies}。请配置耗材后确认加入队列。"
 
     def _commit_import(self, data, connection):
@@ -169,9 +172,9 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
         if any(j['sha256']==row['sha256'] for j in self._data['jobs']+self._data.get('drafts', [])) or self._data['a1_swap'].get('sha256')==row['sha256']:
             return
         try:
-            target=Path(row['path']).resolve()
-            if target.parent==self._service.assets.resolve() and re.fullmatch(r'[0-9a-f]{64}\.3mf',target.name):
-                target.unlink(missing_ok=True)
+            target=canonical_path(row['path'])
+            if target.parent==canonical_path(self._service.assets) and re.fullmatch(r'[0-9a-f]{64}\.3mf',target.name):
+                fs_path(target).unlink(missing_ok=True)
         except OSError:
             self._messages.append('任务已删除，但本地副本清理失败。')
 
@@ -215,6 +218,11 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
             data = message if isinstance(message, dict) else json.loads(message)
             request_id = data.get('request_id')
             action = data.get('action', 'refresh')
+            if action == 'set_language':
+                self._preferences.set_language(data.get('language'))
+                self.post_message(dict(type='preferences', action=action, request_id=request_id, success=True,
+                    language=self._preferences.language, language_revision=self._preferences.revision))
+                return
             if data.get('queue_id', self._data['device_id']) != self._data['device_id']:
                 raise ValueError('界面已切换打印机，请在当前打印机页面重新操作。')
             if action == 'refresh_devices':
@@ -377,7 +385,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
                 report = self._service.snapshot()
                 report.pop('previews', None)
                 target = Path(self._storage) / ('queue-report-' + time.strftime('%Y%m%d-%H%M%S') + '.json')
-                target.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+                fs_path(target).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
                 note = '运行记录已保存：' + str(target)
             elif action == 'verify':
                 for row in self._data['jobs']:
@@ -435,7 +443,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
     def _post_state(self, action, request_id, note, connection):
         with self._service.lock:
             self.post_message(dict(type='state', action=action, request_id=request_id, queue_id=self._data['device_id'],
-                                   build_id=QUEUE_BUILD_ID,
+                                   build_id=QUEUE_BUILD_ID, language=self._preferences.language, language_revision=self._preferences.revision,
                                    fleet=self._fleet.snapshot(connection), success=True, note=note, data=self._service.snapshot(),
                                    messages=self._messages + self._data.get('events',[]), last_export=self._last_export,
                                    swap_settings=self._swap_settings(),

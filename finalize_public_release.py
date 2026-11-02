@@ -52,6 +52,18 @@ def main():
         real_printer_end_to_end='not executed; see 公开测试清单.txt',
         installed_on_development_machine=bool(local),local_installation=local_public,publicly_published=False,
         existing_development_queue='not opened for writing or migrated by release tooling')
+    path_log=ROOT/'verification/legacy-long-path-tests.log'
+    if path_log.is_file():
+        evidence=path_log.read_text(encoding='utf8')
+        assert 'PASS legacy embedded host: old failure reproduced; all fixed-path tests passed.' in evidence
+        report['long_path_checks']=dict(host='isolated embedded Python host with longPathAware=false',
+            baseline='unprefixed long cache creation reproduced FileNotFoundError',
+            result='extended-path I/O passed cache, swap, SQLite, staging, cleanup, preferences and index checks',
+            tests=int(re.search(r'Ran (\d+) tests',evidence)[1]),
+            saved_paths_and_directories='unchanged',physical_printer_commands=0)
+    report['page_languages']=dict(default='zh-CN',supported=['zh-CN','en'],
+        preference='plugin-owned page-preferences.json, independent of each printer queue',
+        unsaved_edits_preserved=True,command_parameter_protocol='unchanged')
     (OUT/'validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
     manifest=json.loads((OUT/'manifest.json').read_text(encoding='utf8'))
     manifest['files']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(OUT.iterdir()) if p.is_file() and p.name not in ('manifest.json','SHA256SUMS.txt')}

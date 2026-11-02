@@ -48,6 +48,6 @@ Orca Plate Queue：GitHub 自动发布配置
 
 本地离线验证（开发者可用，无网络、不会发布）
 python -m unittest ci.test_publish_orcacloud -v
-python ci/publish_orcacloud.py --check-wheel public-release-0.7.5/Orca_Plate_Queue_win_x86_64.whl --tag v0.7.5
+python ci/publish_orcacloud.py --check-wheel public-release-0.7.6/Orca_Plate_Queue_win_x86_64.whl --tag v0.7.6
 
 当前只准备了配置，尚未修改 GitHub 仓库，也尚未在 Orca Cloud 绑定或发布。

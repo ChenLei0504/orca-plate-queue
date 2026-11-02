@@ -1,4 +1,5 @@
 """Local browser-to-plugin file transfer, independent of devices and queue settings."""
+from local_paths import fs_path, canonical_path, replace_file
 from pathlib import Path
 import base64
 import re
@@ -14,7 +15,7 @@ class LocalImports:
     def close(self):
         for item in self.pending.values():
             try:
-                item['path'].unlink(missing_ok=True)
+                fs_path(item['path']).unlink(missing_ok=True)
             except OSError:
                 pass
         self.pending.clear()
@@ -32,9 +33,9 @@ class LocalImports:
                 raise ValueError('已有导入正在进行，请稍后再试。')
             token = uuid.uuid4().hex
             folder = Path(self.storage()) / 'queue_uploads'
-            folder.mkdir(parents=True, exist_ok=True)
+            fs_path(folder).mkdir(parents=True, exist_ok=True)
             path = folder / ('queue-upload-' + token + '.part')
-            path.write_bytes(b'')
+            fs_path(path).write_bytes(b'')
             self.pending[token] = dict(path=path, size=size, received=0, seq=0,
                                        name=re.split(r'[\\/]', name)[-1], copies=copies, queue_id=data.get('queue_id'))
             return dict(token=token, chunk_size=192 * 1024)
@@ -44,7 +45,7 @@ class LocalImports:
         if item['queue_id'] != data.get('queue_id'):
             raise ValueError('文件属于另一台打印机的导入，请切回原队列处理。')
         if action == 'upload_abort':
-            item['path'].unlink(missing_ok=True)
+            fs_path(item['path']).unlink(missing_ok=True)
             del self.pending[data['token']]
             return dict(aborted=True)
         if action == 'upload_chunk':
@@ -56,7 +57,7 @@ class LocalImports:
             raw = base64.b64decode(encoded, validate=True)
             if not raw or item['received'] + len(raw) > item['size']:
                 raise ValueError('导入内容为空，或超过声明的文件大小。')
-            with item['path'].open('ab') as f:
+            with fs_path(item['path']).open('ab') as f:
                 f.write(raw)
             item['received'] += len(raw)
             item['seq'] += 1
@@ -65,11 +66,11 @@ class LocalImports:
             if item['received'] != item['size']:
                 raise ValueError('文件数据未传完整，未加入队列。')
             final = item['path'].with_suffix('.3mf')
-            item['path'].replace(final)
+            replace_file(item['path'], final)
             try:
                 note = self.enqueue(str(final), item['copies'], display_name=item['name'])
             except Exception:
-                final.unlink(missing_ok=True)
+                fs_path(final).unlink(missing_ok=True)
                 raise
             finally:
                 del self.pending[data['token']]

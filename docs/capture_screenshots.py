@@ -9,8 +9,9 @@ root=Path(__file__).resolve().parents[1]
 scenes=root/'verification/readme'
 output=root/'docs/images'
 output.mkdir(parents=True,exist_ok=True)
-for name in ('overview','materials','objects','swap','connection'):
-    width,height=(1600,1180) if name=='overview' else (1440,1080)
+for name in tuple(scene+suffix for suffix in ('','-en') for scene in ('overview','materials','objects','swap','connection')):
+    scene=name.removesuffix('-en')
+    width,height=(1600,1180) if scene=='overview' else (1440,1080)
     args=[r'C:\Program Files\Google\Chrome\Application\chrome.exe','--headless','--disable-gpu',
           '--disable-background-networking','--no-first-run','--no-default-browser-check',
           '--user-data-dir='+str(scenes/('chrome-'+name)),f'--window-size={width},{height}',
@@ -26,5 +27,5 @@ for name in ('overview','materials','objects','swap','connection'):
     report=json.loads(html.unescape(match[1]))
     assert report['synthetic'] is True and report['scroll']<=report['width'],report
     expected={'materials':'settingsDialog','objects':'objectsDialog','swap':'swapDialog','connection':'connectionDialog'}
-    assert report['dialog']==expected.get(name),report
+    assert report['dialog']==expected.get(scene),report
     print(name,(output/(name+'.png')).stat().st_size,report['dialog'] or 'dashboard')

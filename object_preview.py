@@ -1,4 +1,5 @@
 """Read exact native object masks from a frozen single-plate 3MF. No printer I/O."""
+from local_paths import fs_path, canonical_path, replace_file
 import base64
 import struct
 import zipfile
@@ -82,7 +83,7 @@ def inspect_object_preview(path, plate, objects):
         ids = {int(o['id']) for o in objects}
         if len(ids) != len(objects) or any(not 0 < i < 0x1000000 for i in ids):
             raise ValueError('零件编号不能与拾取图建立唯一对应。')
-        with zipfile.ZipFile(path) as archive:
+        with zipfile.ZipFile(fs_path(path)) as archive:
             if archive.getinfo('Metadata/slice_info.config').file_size > 2_000_000:
                 raise ValueError('切片登记过大。')
             config = archive.read('Metadata/slice_info.config')
