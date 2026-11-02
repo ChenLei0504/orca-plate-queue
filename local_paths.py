@@ -18,7 +18,9 @@ def fs_path(value, *, force=False):
         return path
     absolute = ntpath.abspath(text)
     units = len(absolute.encode('utf-16-le', errors='surrogatepass')) // 2
-    if not force and units < 240:
+    # Keep ordinary paths inside the host's private-directory audit allow-list.
+    # 248 is the legacy directory boundary; longer paths still need Win32 support.
+    if not force and units < 248:
         return path
     if absolute.startswith('\\\\'):
         return Path('\\\\?\\UNC\\' + absolute[2:])

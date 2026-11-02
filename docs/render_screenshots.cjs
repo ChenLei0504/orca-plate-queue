@@ -5,7 +5,7 @@ const {multiFixture,amsFixture}=require(path.join(root,'test_page.cjs'));
 const out=path.join(root,'verification/readme');fs.mkdirSync(out,{recursive:true});
 for(const language of ['zh-CN','en'])for(const scene of ['overview','materials','objects','swap','connection']){
  const s=multiFixture(),ams=amsFixture();
- s.version='0.7.6';s.build_id='20261102.3';s.language=language;s.language_revision=0;s.connection.material_mapping_ready=true;
+ s.version='0.7.7';s.build_id='20261102.4';s.language=language;s.language_revision=0;s.connection.material_mapping_ready=true;
  s.data.previews={};s.default_swap_available=false;s.queue_id='fixture-a1';
  s.data.plate_mode='automatic';s.data.auto_after_swap=false;s.data.active.request_id='demo-request';s.data.active.identity={subtask_id:'demo-task'};
  const d=s.connection.devices[0];d.name='A1 · 示例工作台';d.monitor_epoch='documentation-demo';d.state_age_ms=0;d.state_event=42;d.filament_at_toolhead=1;

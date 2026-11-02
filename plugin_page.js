@@ -1,5 +1,5 @@
 /* Local Orca page bridge. No credentials or HTTP file uploads in this page. */
-const PAGE_BUILD_ID='20261102.3';
+const PAGE_BUILD_ID='20261102.4';
 const I18n=window.QueueI18n,tr=(key,params)=>I18n.tr(key,params),message=value=>I18n.message(value);
 I18n.initialize(document);
 let latestReply=null,connection={available:false,devices:[]},setup={},swapSettings={},transitions=[];
@@ -406,6 +406,7 @@ $('openHelp').onclick=()=>$('helpDialog').showModal();$('openSwap').onclick=open
 $('checkSwap').onclick=async()=>{try{await checkedSend('check_swap');$('swapStatus').textContent=tr('已保存的换盘文件校验通过。')+(swapDirty?tr(' 当前修改尚未保存。'):'')}catch(e){$('swapError').textContent=message(e.message)}};
 $('swapPrintSettings').onclick=()=>openSettings('__swap__');for(const id of ['swapPath','swapNozzle','swapEnabled','swapAuto','plateMode'])$(id).oninput=()=>{swapDirty=true;renderSwapDraftStatus()};
 $('add').onclick=async()=>{if(!boundDevice())return focusDevice();if(!busy)await perform('add',{path:$('path').value,copies:1},$('add'))};
+$('retryInitialize').onclick=()=>perform('retry_initialize',{},$('retryInitialize'));
 $('auto').onchange=()=>perform('auto',{enabled:$('auto').checked});$('refresh').onclick=()=>perform('refresh',{},$('refresh'));
 $('refreshDevices').onclick=()=>perform('refresh_devices',{device_id:latestReply?.data.device_id||''},$('refreshDevices'));
 $('preflight').onclick=async()=>{const b=$('preflight');b.disabled=true;$('preflightResult').textContent=tr('正在检查…');try{await checkedSend('preflight');$('preflightResult').textContent=tr('文件与耗材检查通过。')}catch(e){$('preflightResult').textContent=message(e.message)}finally{b.disabled=false}};
@@ -474,6 +475,6 @@ $('languageSelect').onchange=async()=>{
 };
 
 if(window.orca){
-  orca.onMessage(reply=>{const pending=pendingRequests.get(reply.request_id);if(pending){clearTimeout(pending.timer);pendingRequests.delete(reply.request_id);pending.resolve(reply)}if(reply.queue_id!==undefined&&viewQueueId!==null&&reply.queue_id!==viewQueueId&&!['select_queue','bind_device'].includes(pending?.action))return;if(reply.success){if(reply.data){latestReply=reply;if(!busy&&!draggingId)applyState(reply)}if(message(reply.note)&&!busy&&reply.action!=='preflight')feedback(message(reply.note))}else if(!busy&&!['save_settings','save_swap','default_swap','preflight','start','reconcile','end_current','stop_queue','skip_objects'].includes(pending?.action))feedback(message(reply.note)||tr('操作失败'),true)});
+  orca.onMessage(reply=>{if(reply.initialization_failed)$('initializationNotice').hidden=false;else if(reply.success&&reply.data)$('initializationNotice').hidden=true;const pending=pendingRequests.get(reply.request_id);if(pending){clearTimeout(pending.timer);pendingRequests.delete(reply.request_id);pending.resolve(reply)}if(reply.queue_id!==undefined&&viewQueueId!==null&&reply.queue_id!==viewQueueId&&!['select_queue','bind_device'].includes(pending?.action))return;if(reply.success){if(reply.data){latestReply=reply;if(!busy&&!draggingId)applyState(reply)}if(message(reply.note)&&!busy&&reply.action!=='preflight')feedback(message(reply.note))}else if(!busy&&!['save_settings','save_swap','default_swap','preflight','start','reconcile','end_current','stop_queue','skip_objects'].includes(pending?.action))feedback(message(reply.note)||tr('操作失败'),true)});
   send('refresh');setInterval(()=>{if(!busy&&!draggingId&&!pointerDragging&&!pendingRequests.size)send('refresh')},3000);
 }else{applyState({data:{jobs:[],device_id:'',phase:'paused'},connection:{available:false,devices:[],reason:tr('请在 Orca 的“打印队列”页使用。')},swap_settings:{enabled:true,nozzle:.4}})}

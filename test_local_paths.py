@@ -156,9 +156,16 @@ class LongPathTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name=='nt','Windows UTF-16 path counting')
     def test_non_bmp_characters_are_counted_as_utf16_units(self):
-        path=Path('C:\\'+'🌸'*118+'.3mf')
+        path=Path('C:\\'+'🌸'*121+'.3mf')
         self.assertLess(len(str(path)),240)
         self.assertTrue(str(fs_path(path)).startswith('\\\\?\\'))
+
+    @unittest.skipUnless(os.name=='nt','Windows host audit paths')
+    def test_short_paths_keep_the_host_private_root_spelling(self):
+        for size in (239,240,243,247):
+            path=Path('C:/'+'x'*(size-3))
+            self.assertEqual(fs_path(path),path)
+        self.assertTrue(str(fs_path(Path('C:/'+'x'*245))).startswith('\\\\?\\'))
 
     def test_missing_source_is_still_reported_and_not_silently_created(self):
         service,_=self.service()

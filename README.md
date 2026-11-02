@@ -14,7 +14,7 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 | Component / 组件 | Current source version / 当前源码版本 |
 | --- | --- |
-| Queue plugin / 队列插件 | **0.7.6** · build **20261102.3** |
+| Queue plugin / 队列插件 | **0.7.7** · build **20261102.4** |
 | Connection component / 独立连接组件 | **0.7.3** |
 | Platform / 平台 | Windows x64 · OrcaSlicer **2.5.0 beta** |
 
@@ -169,7 +169,7 @@ flowchart LR
 
 ### 更新与常见问题
 
-更新到 0.7.6 后，应看到版本 **0.7.6**、构建 **20261102.3**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
+更新到 0.7.7 后，应看到版本 **0.7.7**、构建 **20261102.4**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
 
 | 现象 | 检查方式 |
 | --- | --- |
@@ -179,7 +179,8 @@ flowchart LR
 | 选择 AMS 却提示手动进料 | 核对本盘供料方式、实际槽位和“完整 AMS 映射已启用”状态；出现异常先暂停检查，不把提示视为正常。 |
 | 文件准备好了但不能开始 | 打开开始前检查，查看设备状态、HMS / 打印错误、喷嘴、耗材映射与换板配置。 |
 | 打印完成却等待核对 | 核对 Handy / 屏幕中的实际任务和状态，再按恢复区域提示处理；不要重复发送原任务。 |
-| 添加换盘文件时 `.part` 报 Errno 2，存储路径很长 | 更新到 0.7.6 / 20261102.3。此构建修复未启用长路径感知的宿主中的缓存创建、校验和数据库访问。 |
+| 允许文件权限后仍提示队列初始化失败 | 更新到 0.7.7。若仍出现权限提示，允许后点击页面“重新初始化”；无需删除队列数据。 |
+| 添加换盘文件时 `.part` 报 Errno 2，存储路径很长 | 更新到 0.7.7 / 20261102.4。此构建修复未启用长路径感知的宿主中的缓存创建、校验和数据库访问。 |
 | 路径编码错误 `-7` | 上游 SDK 无法用系统代码页表示当前缓存路径；检查数据目录字符和系统区域环境。 |
 | 更新后看不到原队列 | 本地插件与云订阅可能使用不同私有目录；本版不自动合并，避免同时激活两套队列。 |
 
@@ -189,7 +190,7 @@ flowchart LR
 
 队列 wheel 不包含 DLL、安装器或命令执行代码，不读取账号文件、不另建登录实例。它仍调用 Orca 已加载的原生桥接，因此市场的原生代码能力提示仍有实际依据。独立安装器的文件修改、备份与恢复范围见其说明。
 
-0.7.6 已在 Orca 自带 Python 3.12.13 与 Python 3.13.1 下各通过 **296 项**测试，页面通过 **91 项**交互测试。测试替身和离线截图不等于实机验收；已在未启用长路径感知的隔离宿主中复现并修复缓存错误。Windows 10 整机、连续打印、AMS 耗尽续料、零件跳过和机械换盘仍需看守验证。详见[兼容性检查](兼容性检查.txt)及[公开测试清单](公开测试清单.txt)。
+0.7.7 已在 Orca 自带 Python 3.12.13 与 Python 3.13.1 下各通过 **301 项**测试，页面通过 **92 项**交互测试。测试替身和离线截图不等于实机验收；已在未启用长路径感知的隔离宿主中复现并修复缓存错误。Windows 10 整机、连续打印、AMS 耗尽续料、零件跳过和机械换盘仍需看守验证。详见[兼容性检查](兼容性检查.txt)及[公开测试清单](公开测试清单.txt)。
 
 ### 开发、反馈与授权
 
@@ -270,7 +271,7 @@ The computer and Orca must remain running. This is not a cloud-hosted scheduler 
 
 ### Download and installation
 
-Use the **[Releases page](https://github.com/ChenLei0504/orca-plate-queue/releases)**. Source version 0.7.6 does not imply that a corresponding public Release has already been published.
+Use the **[Releases page](https://github.com/ChenLei0504/orca-plate-queue/releases)**. Source version 0.7.7 does not imply that a corresponding public Release has already been published.
 
 | Artifact | Purpose |
 | --- | --- |
@@ -337,7 +338,7 @@ Other printers keep their independent queues. Restart, disconnection, unknown ta
 
 ### Updates and troubleshooting
 
-After installing 0.7.6, fully exit and restart Orca. The page should show **0.7.6 / 20261102.3**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
+After installing 0.7.7, fully exit and restart Orca. The page should show **0.7.7 / 20261102.4**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
 
 | Symptom | What to check |
 | --- | --- |
@@ -347,7 +348,8 @@ After installing 0.7.6, fully exit and restart Orca. The page should show **0.7.
 | Manual feeding requested despite AMS selection | Recheck the job's source, slot and complete AMS-mapping capability; pause and investigate unexpected behavior. |
 | Preflight blocks the start | Check state freshness, HMS / print errors, nozzle, mappings and plate-handling settings. |
 | A finished print waits for verification | Check the actual task in Handy/on the printer, then use recovery controls. Do not resend the original task. |
-| Errno 2 for a long `.part` path while adding a swap file | Update to 0.7.6 / 20261102.3. It fixes cache creation, validation and database access in hosts without long-path awareness. |
+| Initialization fails after allowing file access | Update to 0.7.7. If Orca requests access, allow it and click Retry initialization. Queue data does not need to be deleted. |
+| Errno 2 for a long `.part` path while adding a swap file | Update to 0.7.7 / 20261102.4. It fixes cache creation, validation and database access in hosts without long-path awareness. |
 | Path-encoding error `-7` | The upstream SDK cannot represent the cache path in the system code page; check directory characters and locale settings. |
 | A queue appears missing after changing installation type | Local and cloud-installed plugins may have separate private storage. They are not merged automatically; avoid activating both copies. |
 
@@ -355,7 +357,7 @@ After installing 0.7.6, fully exit and restart Orca. The page should show **0.7.
 
 Queue state, cached copies and reports stay in Orca-provided private plugin storage. Original selected 3MF files are read only. The queue wheel contains readable runtime sources and no DLLs or installer; it reuses the existing native bridge without creating another account session or reading account files. Native-code capability remains real and may appear in marketplace auditing.
 
-Version 0.7.6 passed **296 tests each** under Orca's Python 3.12.13 and Python 3.13.1, plus **91 UI workflow tests**. These are software and simulated-transport checks, not full physical acceptance. The long-path failure was reproduced and fixed in an isolated embedded host without long-path awareness. Full Windows 10 installations, continuous printing, AMS depletion/refill, object skipping and mechanical swaps still require supervised real-machine verification. See the [compatibility report](兼容性检查.txt) and [acceptance checklist](公开测试清单.txt).
+Version 0.7.7 passed **301 tests each** under Orca's Python 3.12.13 and Python 3.13.1, plus **92 UI workflow tests**. These are software and simulated-transport checks, not full physical acceptance. The long-path failure was reproduced and fixed in an isolated embedded host without long-path awareness. Full Windows 10 installations, continuous printing, AMS depletion/refill, object skipping and mechanical swaps still require supervised real-machine verification. See the [compatibility report](兼容性检查.txt) and [acceptance checklist](公开测试清单.txt).
 
 Windows long paths are handled at file-I/O boundaries by `local_paths.py`, keeping saved identities and directories unchanged. The page is split by responsibility: `page_messages.js` holds messages and parameterized errors; `page_i18n.js` handles translation, formatting and accessible labels; `page_preferences.py` persists plugin-wide language; `plugin_page.js` handles view interactions. Queue execution remains in `queue_engine.py` / `task_monitor.py` with stable protocol values.
 

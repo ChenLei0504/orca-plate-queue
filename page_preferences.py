@@ -17,6 +17,8 @@ class PagePreferences:
             saved = json.loads(fs_path(self.path).read_text(encoding='utf-8'))
             if isinstance(saved, dict) and saved.get('language') in self.LANGUAGES:
                 self.language = saved['language']
+        except PermissionError:
+            raise  # Let the page offer retry after the host grants access.
         except (OSError, UnicodeError, ValueError):
             pass
 

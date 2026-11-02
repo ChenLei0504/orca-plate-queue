@@ -40,31 +40,38 @@ class QueueService:
         self.lock = threading.RLock()
         self.closed = threading.Event()
         self.fatal = ''
-        self.db = sqlite3.connect(str(fs_path(self.root / 'queue-v3.sqlite3')), check_same_thread=False)
-        self.db.execute('PRAGMA journal_mode=WAL')
-        self.db.execute('PRAGMA synchronous=FULL')
-        self.db.execute('CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)')
-        row = self.db.execute('SELECT payload FROM state WHERE id=1').fetchone()
-        self.data = json.loads(row[0]) if row else dict(
-            schema=3, jobs=[], previews={}, auto_export=False, device_id='', running=False,
-            phase='paused', reason='请加入任务并配置打印机。', active=None, dirty_plate=False,
-            auto_after_swap=False, events=[], journal=[],
-            a1_swap=dict(path=default_swap, source_path=default_swap, nozzle=.4, enabled=True,
-                         validated=False, settings=blank_print_settings()))
-        if self.data.get('schema') != 3:
-            raise ValueError('开发版存档结构不符，请使用独立的 v3 存储目录。')
-        if hasattr(connection, 'watch'):
-            connection.watch(self.data['device_id'])
-        if self.data['running'] or self.data['active']:
-            self.data['running'] = False
-            self.data['phase'] = 'recovery'
-            self.data['reason'] = 'Orca 已重启或插件重新加载。请核对打印机，再选择继续监控或人工处理；不会自动重发。'
-            self._note(self.data['reason'])
-        self._save()
-        self.worker = None
-        if start_worker:
-            self.worker = threading.Thread(target=self._loop, name='A1PlateQueue', daemon=True)
-            self.worker.start()
+        self.db = None
+        try:
+            self.db = sqlite3.connect(str(fs_path(self.root / 'queue-v3.sqlite3')), check_same_thread=False)
+            self.db.execute('PRAGMA journal_mode=WAL')
+            self.db.execute('PRAGMA synchronous=FULL')
+            self.db.execute('CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)')
+            row = self.db.execute('SELECT payload FROM state WHERE id=1').fetchone()
+            self.data = json.loads(row[0]) if row else dict(
+                schema=3, jobs=[], previews={}, auto_export=False, device_id='', running=False,
+                phase='paused', reason='请加入任务并配置打印机。', active=None, dirty_plate=False,
+                auto_after_swap=False, events=[], journal=[],
+                a1_swap=dict(path=default_swap, source_path=default_swap, nozzle=.4, enabled=True,
+                             validated=False, settings=blank_print_settings()))
+            if self.data.get('schema') != 3:
+                raise ValueError('开发版存档结构不符，请使用独立的 v3 存储目录。')
+            if hasattr(connection, 'watch'):
+                connection.watch(self.data['device_id'])
+            if self.data['running'] or self.data['active']:
+                self.data['running'] = False
+                self.data['phase'] = 'recovery'
+                self.data['reason'] = 'Orca 已重启或插件重新加载。请核对打印机，再选择继续监控或人工处理；不会自动重发。'
+                self._note(self.data['reason'])
+            self._save()
+            self.worker = None
+            if start_worker:
+                self.worker = threading.Thread(target=self._loop, name='A1PlateQueue', daemon=True)
+                self.worker.start()
+        except Exception:
+            if self.db is not None:
+                self.db.close()
+            self._lease.close()
+            raise
 
     def _save(self):
         payload = json.dumps(self.data, ensure_ascii=False, separators=(',', ':'), allow_nan=False)

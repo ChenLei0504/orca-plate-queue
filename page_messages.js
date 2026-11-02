@@ -1,6 +1,8 @@
 /* Application-authored messages only; user file and device names are never translated. */
 window.QueueMessages=Object.freeze({
   "en": {
+    "重新初始化": "Retry initialization",
+    "队列尚未初始化。如果刚允许了 Orca 的文件权限，请点击重新初始化。": "The queue has not initialized. If you just allowed file access in Orca, click Retry initialization.",
     "已复用 Orca 当前连接组件与 Bambu Cloud 登录会话。": "Reusing Orca's loaded connection component and Bambu Cloud session.",
     "尚未连接。首次使用请单独安装连接组件。": "Not connected. Install the standalone connection component for first use.",
     "支持 Windows x64 · 接口 02.03.00 / 02.08.01 / 02.08.04": "Windows x64 · interfaces 02.03.00 / 02.08.01 / 02.08.04",

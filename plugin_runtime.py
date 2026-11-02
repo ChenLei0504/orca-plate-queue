@@ -204,12 +204,19 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
 
     def on_message(self, message):
         try:
+            data = message if isinstance(message, dict) else json.loads(message)
+            if data.get('action') == 'retry_initialize':
+                if getattr(self, '_error', ''):
+                    self.on_load()
+                data = dict(data, action='refresh')
             self._ensure()
             with self._fleet.lock:
                 with self._service.lock:
-                    self._handle_message(message)
+                    self._handle_message(data)
         except Exception as exc:
-            self.post_message(dict(type='error', success=False, note=str(exc)))
+            request_id = data.get('request_id') if isinstance(locals().get('data'), dict) else None
+            self.post_message(dict(type='error', request_id=request_id, success=False, note=str(exc),
+                                   initialization_failed=bool(getattr(self, '_error', ''))))
 
     def _handle_message(self, message):
         request_id = None

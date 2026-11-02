@@ -61,6 +61,7 @@ def main():
             result='extended-path I/O passed cache, swap, SQLite, staging, cleanup, preferences and index checks',
             tests=int(re.search(r'Ran (\d+) tests',evidence)[1]),
             saved_paths_and_directories='unchanged',physical_printer_commands=0)
+    report['initialization_permissions']=dict(short_paths='ordinary Windows spelling below 248 UTF-16 units',recovery='explicit user retry after host approval',polling_retries=False,partial_constructor_releases_lock=True,tests='fake-host permission denial and recovery; real Orca prompt not exercised')
     report['page_languages']=dict(default='zh-CN',supported=['zh-CN','en'],
         preference='plugin-owned page-preferences.json, independent of each printer queue',
         unsaved_edits_preserved=True,command_parameter_protocol='unchanged')
