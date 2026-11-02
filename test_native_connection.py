@@ -4,9 +4,24 @@ import json
 import time
 import unittest
 import types
+from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 import native_connection
 from native_connection import NativeQueueBridge
+
+
+@contextmanager
+def forbid_library_loads():
+    # Windows CPython changed from _dlopen to _LoadLibrary in maintenance
+    # releases. Patch only real entry points; never create an unused stub.
+    names = [name for name in ('_dlopen', '_LoadLibrary') if hasattr(ctypes, name)]
+    if not names:
+        raise AssertionError('Unknown ctypes loader; update the DLL-load guard')
+    with ExitStack() as stack:
+        for name in names:
+            stack.enter_context(patch.object(
+                ctypes, name, side_effect=AssertionError('must not open a DLL')))
+        yield
 
 
 class BufferDLL:
@@ -104,6 +119,15 @@ class NativeBufferTests(unittest.TestCase):
 
 
 class NativeDiscoveryTests(unittest.TestCase):
+    def test_library_load_guard_intercepts_real_constructor(self):
+        # Prove the guard catches the loader actually used by this interpreter.
+        # A missing-library OSError would mean the guard is ineffective.
+        with forbid_library_loads():
+            with self.assertRaisesRegex(AssertionError, 'must not open a DLL'):
+                ctypes.CDLL('queue-test-must-not-load.dll')
+            bound = ctypes.CDLL('', handle=123)
+            self.assertEqual(bound._handle, 123)
+
     def discover(self,rows,binding_error=None):
         class Call:
             def __init__(self,fn):self.fn=fn
@@ -127,7 +151,7 @@ class NativeDiscoveryTests(unittest.TestCase):
             if binding_error is not None:raise binding_error
             # Exercise the real Python constructor, including its Windows name
             # checks. Never resolve exports or call functions on the fake handle.
-            with patch.object(ctypes,'_dlopen',side_effect=AssertionError('must not open a DLL')):
+            with forbid_library_loads():
                 bound=real_cdll(name,handle=handle)
             self.assertEqual(bound._handle,handle)
             return dlls[paths[handle]]
