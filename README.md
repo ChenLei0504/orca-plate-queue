@@ -205,9 +205,10 @@ flowchart LR
 | `plugin_page.js` | 视图交互与纯展示刷新；语言切换保留未提交输入。 |
 | `queue_engine.py` / `task_monitor.py` | 打印队列和任务状态机，使用稳定的内部状态。 |
 
-运行源码测试不需要连接打印机：
+运行源码测试不需要连接打印机。先生成测试使用的插件入口；`plugin-dist` 是生成目录，不随 Git 提交，首次克隆和每次修改源码后都应重新生成：
 
 ```powershell
+python -X utf8 build_plugin.py
 python -X utf8 -m unittest discover -q
 python -X utf8 -m unittest ci.test_publish_orcacloud -q
 npm ci --prefix .ui-test-tools --ignore-scripts
@@ -361,9 +362,10 @@ Version 0.7.8 passed **301 tests each** under Orca's Python 3.12.13 and Python 3
 
 Windows long paths are handled at file-I/O boundaries by `local_paths.py`, keeping saved identities and directories unchanged. The page is split by responsibility: `page_messages.js` holds messages and parameterized errors; `page_i18n.js` handles translation, formatting and accessible labels; `page_preferences.py` persists plugin-wide language; `plugin_page.js` handles view interactions. Queue execution remains in `queue_engine.py` / `task_monitor.py` with stable protocol values.
 
-Run offline tests with:
+Generate the plugin entry used by the tests before running them. `plugin-dist` is generated and is not tracked by Git; regenerate it after a fresh clone or source changes:
 
 ```powershell
+python -X utf8 build_plugin.py
 python -X utf8 -m unittest discover -q
 python -X utf8 -m unittest ci.test_publish_orcacloud -q
 npm ci --prefix .ui-test-tools --ignore-scripts

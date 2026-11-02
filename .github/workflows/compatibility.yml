@@ -24,6 +24,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
+      - name: Build plugin fixture from checked-out source
+        run: python -X utf8 build_plugin.py
       - name: Runtime and Windows ctypes regression tests
         run: python -X utf8 -m unittest discover -q
       - name: Publishing validation tests (offline only)
