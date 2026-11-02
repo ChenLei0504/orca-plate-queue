@@ -1,4 +1,4 @@
-Orca Plate Queue 0.7.7 发布验收
+Orca Plate Queue 0.7.8 发布验收
 
 自动验证结果见 validation.json。下列实机项目尚未执行，不应描述为已通过。
 

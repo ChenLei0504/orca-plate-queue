@@ -277,19 +277,19 @@ function bundledFixture(){const s=fixture();s.components={available:true,ready:f
 
 
 test('update status verifies both page service build and loaded history capability',async()=>{
- const s=fixture();s.build_id='20261102.4';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261102.4/);assert.match(t.el('buildService').textContent,/已更新.*20261102.4/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.5';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261102.5/);assert.match(t.el('buildService').textContent,/已更新.*20261102.5/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
 });
 test('new page cannot mistake an old loaded bridge for a complete update',async()=>{
- const s=fixture();s.build_id='20261102.4';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.5';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
 });
 test('unmatched service or unavailable printer reports unknown update state clearly',async()=>{
  const s=fixture();s.connection={available:false,devices:[],reason:'未登录'};const t=launch(s);try{assert.match(t.el('buildService').textContent,/尚未匹配/);assert.equal(t.el('buildHistory').textContent,'连接组件：等待打印机状态');assert.equal(t.requests.some(r=>r.action==='connection_install'),false)}finally{t.close()}
 });
 test('AMS readiness checks the actually loaded material bridge separately from history',async()=>{
- const s=fixture();s.build_id='20261102.4';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.5';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
 });
 test('native binding failure is shown separately from waiting for telemetry',async()=>{
- const s=fixture();s.build_id='20261102.4';s.connection={available:false,devices:[],error_code:'native_binding_failed',reason:'无法绑定 Orca 已加载的连接组件（TypeError）。请更新队列插件并完整退出、重启 Orca。'};const t=launch(s);try{assert.match(t.el('buildHistory').textContent,/绑定失败/);assert.equal(t.el('buildMaterials').textContent,'耗材映射：等待桥接恢复');assert.match(t.el('bridgeNotice').textContent,/TypeError/);assert.equal(t.requests.some(r=>['start','submit','connection_install'].includes(r.action)),false)}finally{t.close()}
+ const s=fixture();s.build_id='20261102.5';s.connection={available:false,devices:[],error_code:'native_binding_failed',reason:'无法绑定 Orca 已加载的连接组件（TypeError）。请更新队列插件并完整退出、重启 Orca。'};const t=launch(s);try{assert.match(t.el('buildHistory').textContent,/绑定失败/);assert.equal(t.el('buildMaterials').textContent,'耗材映射：等待桥接恢复');assert.match(t.el('bridgeNotice').textContent,/TypeError/);assert.equal(t.requests.some(r=>['start','submit','connection_install'].includes(r.action)),false)}finally{t.close()}
 });
 test('connection guide is read-only in both local and cloud variants',async()=>{
  for(const state of [fixture(),bundledFixture()]){const t=launch(state);try{assert.equal(t.el('openConnection').hidden,false);assert.equal(t.w.document.getElementById('installComponents'),null);assert.equal(t.w.document.getElementById('restoreComponents'),null);t.el('openConnection').click();await tick();assert.equal(t.el('connectionDialog').open,true);assert.match(t.el('connectionDialog').textContent,/独立安装/);assert.equal(t.requests.some(r=>/^connection_/.test(r.action)),false);t.el('closeConnection').click();assert.equal(t.el('connectionDialog').open,false)}finally{t.close()}}
@@ -376,6 +376,13 @@ test('opening another staged file uses its own copy count after a language chang
 
 test('initialization recovery is explicit and disappears after a successful retry',async()=>{
  const t=launch(fixture());try{t.deliver({success:false,initialization_failed:true,note:'audit permission required'});assert.equal(t.el('initializationNotice').hidden,false);assert.equal(t.requests.filter(r=>r.action==='retry_initialize').length,0);await chooseLanguage(t,'en');t.deliver({success:false,initialization_failed:true,note:'audit permission required'});assert.match(t.el('retryInitialize').textContent,/Retry initialization/);t.el('retryInitialize').click();await new Promise(r=>setTimeout(r,0));assert.equal(t.requests.filter(r=>r.action==='retry_initialize').length,1);assert.equal(t.el('initializationNotice').hidden,true);assert.equal(t.requests.filter(r=>['start','stop_queue','end_current'].includes(r.action)).length,0)}finally{t.close()}
+});
+
+test('swap dialog removes duplicate check and marks unsaved changes',async()=>{
+ const t=launch();try{t.w.openSwap();assert.equal(t.el('checkSwap'),null);t.el('swapPath').value='C:/changed.3mf';t.el('swapPath').dispatchEvent(new t.w.Event('input'));assert.match(t.el('swapStatus').textContent,/当前修改尚未保存/);await chooseLanguage(t,'en');assert.match(t.el('swapStatus').textContent,/Changes are not saved yet/);assert.equal(t.requests.some(r=>r.action==='check_swap'),false);t.el('saveSwap').click();await tick();assert.equal(t.requests.filter(r=>r.action==='save_swap').length,1)}finally{t.close()}
+});
+test('feedback stays inside the top modal and returns to the page on close',async()=>{
+ const t=launch();try{t.w.openSwap();t.w.feedback('saved fixture');assert.equal(t.el('feedback').parentElement,t.el('swapDialog'));assert.equal(t.el('feedback').classList.contains('dialog-feedback'),true);t.w.showDialog(t.el('settingsDialog'));t.w.feedback('nested error',true);assert.equal(t.el('feedback').parentElement,t.el('settingsDialog'));t.el('settingsDialog').close();assert.equal(t.el('feedback').parentElement,t.el('swapDialog'));t.el('swapDialog').close();assert.equal(t.el('feedback').parentElement,t.w.document.body);assert.equal(t.el('feedback').classList.contains('dialog-feedback'),false);assert.equal(t.el('feedback').hidden,false)}finally{t.close()}
 });
 
 module.exports={fixture,multiFixture,amsFixture,emptyImportFixture,bundledFixture};

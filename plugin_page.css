@@ -37,3 +37,5 @@ body button:hover:not(:disabled){background:var(--pq-soft);border-color:var(--pq
 .language-select{max-width:130px;min-width:104px;font-size:12px;flex-shrink:0}html[lang="en"] .header-actions{flex-wrap:wrap}html[lang="en"] .queue-context{gap:12px}html[lang="en"] .row{flex-wrap:wrap}@media(max-width:700px){.page-header{flex-wrap:wrap}.header-actions{margin-left:auto;gap:6px}.language-select{min-width:98px}html[lang="en"] .queue-context{flex-wrap:wrap}}
 
 html[lang="en"] .stats strong small{margin-left:.25em}
+
+.toast.dialog-feedback{position:static;max-width:none;margin:0 25px 16px;box-shadow:none;overflow-wrap:anywhere}

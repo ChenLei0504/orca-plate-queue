@@ -1,6 +1,7 @@
 /* Application-authored messages only; user file and device names are never translated. */
 window.QueueMessages=Object.freeze({
   "en": {
+    "当前修改尚未保存，保存时将重新校验。": "Changes are not saved yet. Saving will validate the updated settings.",
     "重新初始化": "Retry initialization",
     "队列尚未初始化。如果刚允许了 Orca 的文件权限，请点击重新初始化。": "The queue has not initialized. If you just allowed file access in Orca, click Retry initialization.",
     "已复用 Orca 当前连接组件与 Bambu Cloud 登录会话。": "Reusing Orca's loaded connection component and Bambu Cloud session.",

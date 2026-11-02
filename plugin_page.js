@@ -1,5 +1,5 @@
 /* Local Orca page bridge. No credentials or HTTP file uploads in this page. */
-const PAGE_BUILD_ID='20261102.4';
+const PAGE_BUILD_ID='20261102.5';
 const I18n=window.QueueI18n,tr=(key,params)=>I18n.tr(key,params),message=value=>I18n.message(value);
 I18n.initialize(document);
 let latestReply=null,connection={available:false,devices:[]},setup={},swapSettings={},transitions=[];
@@ -39,7 +39,23 @@ function pendingJobs(data=latestReply?.data){return (data?.jobs||[]).filter(j=>j
 function boundDevice(data=latestReply?.data){return connection.devices.find(d=>d.id===data?.device_id&&MODEL_NAMES[d.model])}
 function deviceFaultText(d){const t=d?.telemetry||{},details=[],error=t.print_error,count=t.hms_count;if(error)details.push(tr('打印错误 ')+(Number.isInteger(error)&&error>=0?'0x'+error.toString(16).toUpperCase().padStart(8,'0'):String(error)));if(count)details.push(count+tr(' 条 HMS 设备告警'));return details.join(tr('；'))}
 function deviceReady(d){return !!d&&!!MODEL_NAMES[d.model]&&d.online&&d.cloud_connected&&d.age_ms<=15000&&d.nozzle!==null}
-function feedback(message,error=false){if(!message)return;lastFeedback={message:I18n.original(String(message)),error};clearTimeout(toastTimer);const box=$('feedback');box.replaceChildren(button('×','',()=>{box.hidden=true},tr('关闭提示')),document.createTextNode(I18n.message(message)));box.className='toast'+(error?' error':'');box.hidden=false;if(!error)toastTimer=setTimeout(()=>{box.hidden=true},6500)}
+const modalOrder=[];
+function placeFeedback(){
+  const box=$('feedback'),active=modalOrder.filter(dialog=>dialog.open).at(-1)||[...document.querySelectorAll('dialog[open]')].at(-1);
+  box.classList.toggle('dialog-feedback',!!active);
+  if(active)active.insertBefore(box,active.querySelector('.dialog-footer'));else document.body.append(box);
+  return active;
+}
+function showDialog(dialog){
+  $('feedback').hidden=true;
+  dialog.showModal();
+  const previous=modalOrder.indexOf(dialog);if(previous>=0)modalOrder.splice(previous,1);
+  modalOrder.push(dialog);placeFeedback();
+}
+for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{
+  const index=modalOrder.indexOf(dialog);if(index>=0)modalOrder.splice(index,1);placeFeedback();
+});
+function feedback(message,error=false){if(!message)return;lastFeedback={message:I18n.original(String(message)),error};clearTimeout(toastTimer);const box=$('feedback');box.replaceChildren(button('×','',()=>{box.hidden=true},tr('关闭提示')),document.createTextNode(I18n.message(message)));box.className='toast'+(error?' error':'');box.hidden=false;if(placeFeedback())box.scrollIntoView({block:'nearest'});if(!error)toastTimer=setTimeout(()=>{box.hidden=true},6500)}
 function send(action,extra={}){
   if(!window.orca)return Promise.resolve({success:false,note:tr('请在 Orca 中使用此页面。')});
   const request_id=String(++requestSequence);
@@ -198,7 +214,7 @@ function renderRun(data){const a=data.active,d=boundDevice(data),t=d?.telemetry|
 function applyState(reply){if(!reply.data)return;acceptLanguage(reply);if(viewQueueId!==null&&reply.queue_id!==undefined&&reply.queue_id!==viewQueueId){for(const d of document.querySelectorAll('dialog[open]'))d.close();editing=null;selected=null;cardsKey='';draggingId=null;noticedImports.clear();startEpoch++}viewQueueId=reply.queue_id??reply.data.device_id;latestReply=reply;connection=reply.connection||{available:false,devices:[]};setup=reply.setup||{};swapSettings=reply.swap_settings||{};transitions=reply.swap_plan||[];renderConnection(reply.data);renderOverview(reply.data);renderSwap(reply.data);renderJobs(reply.data);renderRun(reply.data);renderFleet(reply);if(document.activeElement!==$('auto'))$('auto').checked=!!reply.data.auto_export;$('events').textContent=[...(reply.messages||[])].reverse().map(message).join('\n')||tr('暂无运行记录。');renderImports(reply.data);syncObjectsDialog(reply.data)}
 function renderImports(data){renderComponents(latestReply);const drafts=data.drafts||[];$('importPending').hidden=!drafts.length;$('importPendingText').textContent=drafts.length+tr(' 个文件待配置，确认后才会显示在队列。');const fresh=drafts.some(d=>!noticedImports.has(d.id));for(const d of drafts)noticedImports.add(d.id);if(fresh&&!busy&&!editing&&!document.querySelector('dialog[open]'))queueMicrotask(()=>openNextImport())}
 function openNextImport(){const draft=latestReply?.data.drafts?.[0];if(draft&&!editing)openSettings(draft.id)}
-function showPreview(src,name){$('previewTitle').textContent=name;$('previewImage').src=src;$('previewDialog').showModal()}
+function showPreview(src,name){$('previewTitle').textContent=name;$('previewImage').src=src;showDialog($('previewDialog'))}
 function refillIdentity(slot){const type=String(slot?.type||'').trim().toUpperCase(),color=String(slot?.color||'').replace(/^#/,'').toUpperCase();return type&&/^[0-9A-F]{6}([0-9A-F]{2})?$/.test(color)&&!(color.length===8&&color.endsWith('00'))?type+'|'+color+(color.length===6?'FF':''):''}
 function renderBackupChoices(f,device){const settings=editing.settings,group=settings.refill?.[f.id],primary=device?.slots.find(s=>s.id===settings.mapping[f.id]),identity=refillIdentity(group)||refillIdentity(primary),box=node('div','backup-choices');
   box.append(node('strong','',tr('跨盘续料备用槽（可选）')),node('small','',tr('主槽不可用时，按勾选顺序使用有料的同类型、同颜色槽。每盘发送前检查；不更改打印机内的自动续料设置。')));
@@ -241,15 +257,15 @@ function openSettings(id){if(busy)return;const data=latestReply?.data,device=bou
   renderSettingsHeading();
   $('materialSource').value=settings.source;$('externalReady').checked=!!settings.external_ready;$('applyMatching').checked=false;$('applyMatchingLabel').hidden=!targets.length;
   for(const [field,key] of [['bedLeveling','bed_leveling'],['flowCalibration','flow_calibration'],['timelapse','timelapse']]){const input=$(field);input.checked=!!settings.options[key];input.disabled=asset.motion_only||!device.supported_options.includes(key);if(input.disabled)input.checked=false}
-  $('settingsError').textContent='';renderMappings();$('settingsDialog').showModal();
+  $('settingsError').textContent='';renderMappings();showDialog($('settingsDialog'));
 }
 $('savePrintSettings').onclick=async()=>{if(!editing)return;const draft=editing,element=$('savePrintSettings'),copies=draft.importing?Number($('importCopies').value):null;if(draft.importing&&(!Number.isInteger(copies)||copies<1||copies>100)){$('settingsError').textContent=tr('加入份数须为 1–100 的整数。');$('importCopies').focus();return}element.disabled=true;draft.settings.external_ready=$('externalReady').checked;for(const [field,key] of [['bedLeveling','bed_leveling'],['flowCalibration','flow_calibration'],['timelapse','timelapse']])draft.settings.options[key]=$(field).checked;try{await checkedSend(draft.importing?'commit_import':'save_settings',{id:draft.id,settings:draft.settings,...(draft.importing?{copies}:{}),apply_to:$('applyMatching').checked?draft.targets:[]});if(editing===draft){$('settingsDialog').close();if(draft.importing)openNextImport()}}catch(e){$('settingsError').textContent=message(e.message)}finally{element.disabled=false}};
 $('cancelImport').onclick=async()=>{const draft=editing;if(!draft?.importing)return;const b=$('cancelImport');b.disabled=true;try{await checkedSend('discard_import',{id:draft.id});if(editing===draft){$('settingsDialog').close();openNextImport()}}catch(e){$('settingsError').textContent=message(e.message)}finally{b.disabled=false}};
 $('materialSource').onchange=()=>{if(editing){editing.settings.source=$('materialSource').value;editing.settings.mapping={};editing.settings.refill={};editing.settings.external_ready=false;$('externalReady').checked=false;renderMappings()}};
 $('settingsDialog').addEventListener('close',()=>{editing=null});
 function fillSwapDraft(){$('plateMode').value=latestReply?.data.plate_mode||'automatic';$('swapPath').value=swapSettings.source_path||swapSettings.path||'';$('swapNozzle').value=String(swapSettings.nozzle||.4);$('swapEnabled').checked=swapSettings.enabled!==false;$('swapAuto').checked=!!latestReply?.data.auto_after_swap;renderSwapDraftStatus()}
-function renderSwapDraftStatus(){const supported=SWAP_MODELS.has(boundDevice()?.model);$('plateMode').querySelector('option[value=automatic]').disabled=!supported;if(!supported)$('plateMode').value='manual';const manual=$('plateMode').value==='manual';$('swapFileFields').hidden=manual;$('swapEnabled').closest('label').hidden=manual;$('swapAuto').closest('label').hidden=manual;$('defaultSwap').disabled=boundDevice()?.model!=='N2S';$('swapStatus').textContent=swapSettings.validated?tr('已保存并校验：')+(swapSettings.name||basename(swapSettings.path))+(swapSettings.motion_only?tr('\n仅机械换盘，无需单独装 PLA。'):tr('\n换盘文件使用独立耗材设置。')):tr('请选择文件并保存校验。');$('swapPrintSettings').hidden=!!swapSettings.motion_only||!swapSettings.validated}
-function openSwap(){const data=latestReply?.data;if(data?.running||data?.active){feedback(tr('执行中不能更改换盘设置。'),true);return}swapDirty=false;fillSwapDraft();$('swapError').textContent='';$('swapDialog').showModal()}
+function renderSwapDraftStatus(){const supported=SWAP_MODELS.has(boundDevice()?.model);$('plateMode').querySelector('option[value=automatic]').disabled=!supported;if(!supported)$('plateMode').value='manual';const manual=$('plateMode').value==='manual';$('swapFileFields').hidden=manual;$('swapEnabled').closest('label').hidden=manual;$('swapAuto').closest('label').hidden=manual;$('defaultSwap').disabled=boundDevice()?.model!=='N2S';$('swapStatus').textContent=swapSettings.validated?tr('已保存并校验：')+(swapSettings.name||basename(swapSettings.path))+(swapSettings.motion_only?tr('\n仅机械换盘，无需单独装 PLA。'):tr('\n换盘文件使用独立耗材设置。')):tr('请选择文件并保存校验。');if(swapDirty)$('swapStatus').textContent=tr('当前修改尚未保存，保存时将重新校验。')+'\n'+$('swapStatus').textContent;$('swapPrintSettings').hidden=!!swapSettings.motion_only||!swapSettings.validated}
+function openSwap(){const data=latestReply?.data;if(data?.running||data?.active){feedback(tr('执行中不能更改换盘设置。'),true);return}swapDirty=false;fillSwapDraft();$('swapError').textContent='';showDialog($('swapDialog'))}
 async function saveSwap(useDefault=false){const b=useDefault?$('defaultSwap'):$('saveSwap');b.disabled=true;$('swapError').textContent='';try{await checkedSend(useDefault?'default_swap':'save_swap',{plate_mode:useDefault?'automatic':$('plateMode').value,path:$('swapPath').value,nozzle:Number($('swapNozzle').value),enabled:$('swapEnabled').checked,automatic:$('swapAuto').checked});swapDirty=false;fillSwapDraft();if(!useDefault)$('swapDialog').close()}catch(e){$('swapError').textContent=message(e.message)}finally{b.disabled=false}}
 function startChecks(data){
   const r=readiness(data,startOperation==='swap_first'),d=boundDevice(data),fresh=deviceReady(d),state=d?.telemetry?.gcode_state,stateFresh=(d?.state_age_ms??d?.age_ms??Infinity)<=15000,idle=fresh&&stateFresh&&READY_STATES.has(state),fault=deviceFaultText(d);
@@ -262,11 +278,11 @@ function renderStartChecklist(extra=''){const body=$('startChecklist');body.repl
 function updateStartButton(){const ack=startOperation==='reconcile'?$('checkedPending').checked:startOperation==='swap_first'?$('swapReady').checked:$('bedClear').checked;$('confirmStart').disabled=startChecking||!ack||(startOperation!=='reconcile'&&!startPassed)}
 async function checkStart(){if(startOperation==='reconcile'){startPassed=true;renderStartChecklist();updateStartButton();return}const epoch=++startEpoch;startChecking=true;startPassed=false;updateStartButton();$('startError').textContent='';renderStartChecklist(tr('正在核对文件、设备和耗材…'));try{await checkedSend('preflight',{for_start:true,swap_first:startOperation==='swap_first'});if(epoch!==startEpoch||!$('startDialog').open)return;startPassed=true;renderStartChecklist(tr('文件、设备与逐盘设置检查通过。'))}catch(e){if(epoch!==startEpoch||!$('startDialog').open)return;$('startError').textContent=message(e.message);renderStartChecklist()}finally{if(epoch===startEpoch){startChecking=false;updateStartButton()}}}
 function renderStartPresentation(){const reconcile=startOperation==='reconcile',swapFirst=startOperation==='swap_first',jobs=pendingJobs();$('startDescription').dataset.deviceId=latestReply?.data.device_id||'';$('startTitle').textContent=reconcile?tr('确认当前任务已结束'):swapFirst?tr('换盘后继续队列'):tr('开始前检查');$('startDescription').textContent=(boundDevice()?.name||tr('当前机器'))+' · '+(reconcile?tr('请先核对打印机和 Handy，防止已有任务稍后启动。'):swapFirst?tr('先运行独立换盘文件，再开始下一盘。'):tr('检查通过并确认打印板就绪后，才会发送打印。'));$('bedClearGroup').hidden=swapFirst;$('bedClearGroup').querySelector('span').textContent=reconcile?tr('当前已装好空白打印板（未勾选则保留待换盘状态）'):latestReply?.data.plate_mode==='manual'?tr('已安装空白打印板，打印区域已清空'):tr('已安装空白打印板，换盘机构及备板已就绪');$('swapReadyGroup').hidden=!swapFirst;$('checkedPendingGroup').hidden=!reconcile;$('recheckStart').hidden=reconcile;$('confirmStart').textContent=reconcile?tr('记录已结束'):swapFirst?tr('确认换盘并继续'):tr('确认并开始');const summary=$('startSummary');summary.replaceChildren();if(!reconcile){const a=node('div'),b=node('div');a.append(node('strong','',jobs.length+tr(' 盘任务')),node('small','',boundDevice()?.name||tr('打印机未绑定')));b.append(node('strong','',duration(jobs.reduce((s,j)=>s+(j.duration_s||0),0))),node('small','',tr('切片预计用时，不含调平与换盘')));summary.append(a,b)}summary.hidden=reconcile;}
-function openStart(operation){if(busy)return;startOperation=operation;startPassed=false;startChecking=false;$('bedClear').checked=false;$('swapReady').checked=false;$('checkedPending').checked=false;$('startError').textContent='';const reconcile=operation==='reconcile',swapFirst=operation==='swap_first',jobs=pendingJobs();renderStartPresentation();$('startDialog').showModal();checkStart()}
+function openStart(operation){if(busy)return;startOperation=operation;startPassed=false;startChecking=false;$('bedClear').checked=false;$('swapReady').checked=false;$('checkedPending').checked=false;$('startError').textContent='';const reconcile=operation==='reconcile',swapFirst=operation==='swap_first',jobs=pendingJobs();renderStartPresentation();showDialog($('startDialog'));checkStart()}
 $('startDialog').addEventListener('close',()=>{startEpoch++;startChecking=false});
 $('confirmStart').onclick=async()=>{const b=$('confirmStart');if(b.disabled)return;b.disabled=true;const epoch=++startEpoch;try{await checkedSend(startOperation==='reconcile'?'reconcile':'start',{bed_clear:$('bedClear').checked,swap_first:startOperation==='swap_first',checked_pending:$('checkedPending').checked});if(epoch===startEpoch)$('startDialog').close()}catch(e){$('startError').textContent=message(e.message);startPassed=false}finally{updateStartButton()}};
 function renderControlPresentation(){const action=actionIntent;const continuing=action==='end_current',name=boundDevice()?.name||tr('当前机器'),manual=latestReply?.data.plate_mode==='manual';$('actionTitle').textContent=name+' · '+(continuing?tr('结束本盘，继续队列'):tr('停止本机打印并暂停队列'));$('actionDescription').textContent=continuing?tr('将结束 ')+name+tr(' 的当前盘。')+(pendingJobs().length?(manual?tr('随后等待手动换板，确认后继续下一盘。'):tr('随后按本机换盘设置继续下一盘。')):tr('没有后续任务，保留最后一盘。'))+tr('其他打印机继续各自运行。'):tr('将停止 ')+name+tr(' 的当前打印，并暂停本机后续队列。其他打印机继续各自运行。');$('confirmAction').textContent=continuing?tr('结束本盘并继续'):tr('停止并暂停队列');}
-function confirmControl(action){actionIntent=action;$('actionError').textContent='';renderControlPresentation();$('actionDialog').showModal()}
+function confirmControl(action){actionIntent=action;$('actionError').textContent='';renderControlPresentation();showDialog($('actionDialog'))}
 function syncCompletedReview(){
   const ctx=completionAttempt;if(!ctx)return;const a=latestReply?.data.active,d=boundDevice(),t=d?.telemetry||{};
   const current=a?.request_id===ctx.request_id&&viewQueueId===ctx.queue_id;
@@ -291,7 +307,7 @@ function openCompletedReview(){
   const data=latestReply?.data,a=data?.active;if(!a||busy)return;
   completionAttempt={request_id:a.request_id,queue_id:viewQueueId,tag:a.tag,passed:false,checking:false,working:false};
   renderCompletedPresentation();
-  $('completeConfirmed').checked=false;$('completeError').textContent='';$('completeDialog').showModal();checkCompletedReview();
+  $('completeConfirmed').checked=false;$('completeError').textContent='';showDialog($('completeDialog'));checkCompletedReview();
 }
 $('completeDialog').addEventListener('close',()=>{completionAttempt=null});
 $('closeComplete').onclick=()=>$('completeDialog').close();$('recheckComplete').onclick=checkCompletedReview;$('completeConfirmed').onchange=syncCompletedReview;
@@ -342,7 +358,7 @@ function syncObjectsDialog(data){
 async function openObjects(jobId=null,readOnly=false){
   const data=latestReply?.data,job=data?.jobs.find(j=>j.id===(jobId||data.active?.job_id));if(!job)return;if(!readOnly&&job.object_count===1)return confirmControl('end_current');
   const ctx={serial:++objectsSerial,queueId:viewQueueId,attempt:objectAttempt(data),job,ids:new Set(job.objects.map(o=>String(o.id))),done:new Set(),pending:new Set(),selected:new Set(),readOnly,submitting:false,hover:null};objectsState=ctx;
-  $('objectsTitle').textContent=readOnly?tr('本盘零件预览'):tr('跳过本盘零件');$('objectsDescription').textContent=(boundDevice()?.name||tr('当前机器'))+' · '+job.name;$('objectsError').textContent='';$('objectsPreviewNote').textContent=tr('正在读取本盘俯视图与零件位置…');$('objectsPreview').replaceChildren(node('div','object-preview-empty',tr('正在读取零件预览…')));$('objectsFit').disabled=true;renderObjectRows();$('objectsDialog').showModal();syncObjectsDialog(data);
+  $('objectsTitle').textContent=readOnly?tr('本盘零件预览'):tr('跳过本盘零件');$('objectsDescription').textContent=(boundDevice()?.name||tr('当前机器'))+' · '+job.name;$('objectsError').textContent='';$('objectsPreviewNote').textContent=tr('正在读取本盘俯视图与零件位置…');$('objectsPreview').replaceChildren(node('div','object-preview-empty',tr('正在读取零件预览…')));$('objectsFit').disabled=true;renderObjectRows();showDialog($('objectsDialog'));syncObjectsDialog(data);
   try{const reply=await checkedSend('object_preview',{id:job.id});if(objectsState!==ctx||!$('objectsDialog').open)return;if(reply.job_id!==job.id||reply.queue_id!==ctx.queueId)throw Error(tr('零件预览归属不匹配。'));renderObjectPreview(reply.preview||{})}catch(e){if(objectsState!==ctx)return;$('objectsPreview').replaceChildren(node('div','object-preview-empty',tr('预览暂不可用，可使用下方列表。')));$('objectsPreviewNote').textContent=message(e.message)}
 }
 $('objectsSelectAll').onchange=()=>{const ctx=objectsState;if(!ctx)return;for(const o of ctx.job.objects){const id=String(o.id);if(!ctx.done.has(id)&&!ctx.pending.has(id)){if($('objectsSelectAll').checked)ctx.selected.add(id);else ctx.selected.delete(id)}}syncObjectUI()};
@@ -396,14 +412,13 @@ document.addEventListener('drop',e=>{if(!isFileDrag(e))return;e.preventDefault()
 document.addEventListener('dragend',()=>{zone.classList.remove('drag-over');pointerDragging=false});
 document.addEventListener('click',e=>{if(!e.target.closest('#importOptions'))$('importOptions').open=false});
 $('quickAdd').onclick=()=>guide('jobs');
-$('openConnection').onclick=()=>{renderComponents(latestReply);$('connectionDialog').showModal()};
+$('openConnection').onclick=()=>{renderComponents(latestReply);showDialog($('connectionDialog'))};
 $('closeConnection').onclick=()=>$('connectionDialog').close();
 $('connectionDownloadUrl').onclick=()=>$('connectionDownloadUrl').select();
 for(const [id,dialog] of [['closeSettings','settingsDialog'],['closeSwap','swapDialog'],['cancelSwap','swapDialog'],['closeStart','startDialog'],['closeObjects','objectsDialog'],['closeAction','actionDialog'],['cancelAction','actionDialog'],['closePreview','previewDialog'],['closeHelp','helpDialog']])$(id).onclick=()=>$(dialog).close();
 $('pendingTab').onclick=()=>{queueFilter='pending';renderJobs(latestReply?.data||{jobs:[]})};$('historyTab').onclick=()=>{queueFilter='history';renderJobs(latestReply?.data||{jobs:[]})};
 $('configureImports').onclick=openNextImport;
-$('openHelp').onclick=()=>$('helpDialog').showModal();$('openSwap').onclick=openSwap;$('saveSwap').onclick=()=>saveSwap();$('defaultSwap').onclick=()=>saveSwap(true);
-$('checkSwap').onclick=async()=>{try{await checkedSend('check_swap');$('swapStatus').textContent=tr('已保存的换盘文件校验通过。')+(swapDirty?tr(' 当前修改尚未保存。'):'')}catch(e){$('swapError').textContent=message(e.message)}};
+$('openHelp').onclick=()=>showDialog($('helpDialog'));$('openSwap').onclick=openSwap;$('saveSwap').onclick=()=>saveSwap();$('defaultSwap').onclick=()=>saveSwap(true);
 $('swapPrintSettings').onclick=()=>openSettings('__swap__');for(const id of ['swapPath','swapNozzle','swapEnabled','swapAuto','plateMode'])$(id).oninput=()=>{swapDirty=true;renderSwapDraftStatus()};
 $('add').onclick=async()=>{if(!boundDevice())return focusDevice();if(!busy)await perform('add',{path:$('path').value,copies:1},$('add'))};
 $('retryInitialize').onclick=()=>perform('retry_initialize',{},$('retryInitialize'));
