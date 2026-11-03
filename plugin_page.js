@@ -40,7 +40,7 @@ function renderComponents(reply){
     try{const u=new URL(auth.browser_url);if(waiting&&!logged&&!working&&['https://bambulab.cn','https://bambulab.com'].includes(u.origin)&&u.pathname==='/sign-in'&&!u.username&&!u.password)loginUrl=u.href}catch{}
     $('cloudBrowserLink').hidden=!loginUrl;
     $('cloudBrowserUrl').value=loginUrl;
-    if(loginUrl)$('cloudBrowserOpen').href=loginUrl;else $('cloudBrowserOpen').removeAttribute('href');
+    $('cloudBrowserOpen').disabled=!loginUrl;
     return;
   }
   const connected=reply?.connection?.available===true;
@@ -435,7 +435,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('#importOptions'))$('
 $('quickAdd').onclick=()=>guide('jobs');
 $('openConnection').onclick=()=>{renderComponents(latestReply);showDialog($('connectionDialog'))};
 $('closeConnection').onclick=()=>$('connectionDialog').close();
-for(const [id,action] of [['cloudBrowserBegin','cloud_browser_begin'],['cloudBrowserCancel','cloud_browser_cancel'],['cloudReconnect','cloud_reconnect'],['cloudLogout','cloud_logout']]){
+for(const [id,action] of [['cloudBrowserBegin','cloud_browser_begin'],['cloudBrowserOpen','cloud_browser_open'],['cloudBrowserCancel','cloud_browser_cancel'],['cloudReconnect','cloud_reconnect'],['cloudLogout','cloud_logout']]){
   $(id).onclick=async()=>{
     const data=action==='cloud_browser_begin'?{region:$('cloudRegion').value}:{};
     $(id).disabled=true;

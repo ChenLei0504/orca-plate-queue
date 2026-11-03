@@ -316,6 +316,27 @@ class NativePrivatePipeTests(unittest.TestCase):
                 self.assertNotIn('TEST-SECRET',json.dumps(provider.snapshot()))
             finally:provider.close()
 
+    def test_native_system_browser_destination_matches_callback_and_rejects_commands(self):
+        from browser_login import BrowserLogin
+        process=PrivateProcess(FIXTURE)
+        try:
+            for region in ('CN','US'):
+                browser=BrowserLogin(region)
+                try:
+                    payload=browser.launch_payload()
+                    # The fixture compiles out ShellExecute: this returns the would-be URL.
+                    self.assertEqual(process.call('open_login_browser',payload),browser.url)
+                    for field,values in [('region',['https://evil.invalid','CN&evil=1']),
+                                         ('port',[0,65536,True,'13618',1.5]),
+                                         ('nonce',['short','x'*42+'/', 'x'*42+'\n'])]:
+                        for value in values:
+                            with self.assertRaises(OwnedConnectionError):
+                                process.call('open_login_browser',dict(payload,**{field:value}))
+                    with self.assertRaises(OwnedConnectionError):
+                        process.call('open_login_browser',{'url':'file:///C:/Windows/System32/cmd.exe'})
+                finally:browser.close()
+        finally:process.close()
+
     def test_ticket_exchange_is_single_use_and_never_exports_credentials(self):
         with tempfile.TemporaryDirectory() as folder:
             process=PrivateProcess(FIXTURE)

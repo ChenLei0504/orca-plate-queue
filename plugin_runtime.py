@@ -253,7 +253,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
                 self._connection.refresh()
             connection = self._connection.snapshot()
             note = ''
-            if action in ('cloud_browser_begin', 'cloud_browser_cancel', 'cloud_logout', 'cloud_reconnect'):
+            if action in ('cloud_browser_begin', 'cloud_browser_open', 'cloud_browser_cancel', 'cloud_logout', 'cloud_reconnect'):
                 if not OWNED_CLOUD:
                     raise ValueError('当前安装版本未启用独立云连接。')
                 active = any(s.data.get('running') or s.data.get('active') for s in self._fleet.services.values())

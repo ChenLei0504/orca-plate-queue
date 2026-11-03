@@ -400,13 +400,26 @@ test('official browser sign-in has no account or code entry',async()=>{
 });
 test('pending browser login shows only official URLs and blocks duplicate preparation',async()=>{
  const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,browser_waiting:true,browser_url:'https://bambulab.cn/sign-in?to=fixture'};
- const t=launch(state);try{assert.equal(t.el('cloudBrowserBegin').disabled,true);assert.equal(t.el('cloudBrowserLink').hidden,false);assert.equal(t.el('cloudBrowserOpen').hostname,'bambulab.cn');
+ const t=launch(state);try{assert.equal(t.el('cloudBrowserBegin').disabled,true);assert.equal(t.el('cloudBrowserLink').hidden,false);assert.equal(t.el('cloudBrowserOpen').tagName,'BUTTON');assert.equal(t.el('cloudBrowserOpen').hasAttribute('href'),false);assert.equal(t.el('cloudBrowserOpen').disabled,false);
  t.el('cloudBrowserBegin').click();assert.equal(t.requests.some(r=>r.action==='cloud_browser_begin'),false);
- for(const url of ['javascript:alert(1)','https://bambulab.cn.evil.example/sign-in','https://bambulab.cn@evil.example/sign-in']){state.cloud_auth.browser_url=url;t.set(state);assert.equal(t.el('cloudBrowserLink').hidden,true);assert.equal(t.el('cloudBrowserOpen').hasAttribute('href'),false)}
+ for(const url of ['javascript:alert(1)','https://bambulab.cn.evil.example/sign-in','https://bambulab.cn@evil.example/sign-in']){state.cloud_auth.browser_url=url;t.set(state);assert.equal(t.el('cloudBrowserLink').hidden,true);assert.equal(t.el('cloudBrowserOpen').hasAttribute('href'),false);assert.equal(t.el('cloudBrowserOpen').disabled,true)}
  state.cloud_auth.busy=true;t.set(state);assert.equal(t.el('cloudReconnect').disabled,true);assert.equal(t.el('cloudBrowserCancel').disabled,true);
  state.cloud_auth.busy=false;t.set(state);t.el('cloudBrowserCancel').click();await tick();assert.equal(t.requests.at(-1).action,'cloud_browser_cancel');
  }finally{t.close()}
 });
+test('system browser button keeps the Orca page and sends no URL or credential',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,browser_waiting:true,browser_url:'https://bambulab.cn/sign-in?to=offline-example'};
+ const t=launch(state);try{
+  const before=t.w.location.href;t.el('openConnection').click();
+  t.el('cloudBrowserOpen').click();await tick();
+  const req=t.requests.find(r=>r.action==='cloud_browser_open');assert.ok(req);
+  assert.equal(req.url,undefined);assert.equal(req.browser_url,undefined);assert.equal(req.account,undefined);
+  assert.equal(t.w.location.href,before);assert.equal(t.el('connectionDialog').open,true);
+  assert.equal(t.el('cloudBrowserOpen').closest('a'),null);
+  state.cloud_auth.busy=true;t.set(state);const count=t.requests.length;t.el('cloudBrowserOpen').click();await tick();assert.equal(t.requests.length,count);
+ }finally{t.close()}
+});
+
 test('browser region choice survives polling and expired links are cleared',async()=>{
  const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'请登录 Bambu Cloud。'};
  const t=launch(state);try{t.el('cloudRegion').value='US';t.set(state);assert.equal(t.el('cloudRegion').value,'US');t.el('cloudBrowserBegin').click();await tick();assert.equal(t.requests.find(r=>r.action==='cloud_browser_begin').region,'US');

@@ -119,7 +119,8 @@ class PrivateProcess:
                 reasons = {-3: '连接状态或指令编号冲突', -4: '登录或任务发送未完成',
                            -6: '打印机状态已变化', -7: '当前 Windows 不支持组件所需的 UTF-8 路径',
                            -8: '设备或打印任务身份不匹配', -9: '无法保护本机登录目录',
-                           -10: '该账号目录已由另一个队列组件使用'}
+                           -10: '该账号目录已由另一个队列组件使用',
+                           -11: '无法打开系统浏览器，请复制登录链接到 Chrome 或 Edge'}
                 raise ComponentRejected(reasons.get(code, '连接组件未接受操作') + f'（{code}）')
             return result.get('result', result.get('code', 0))
 
@@ -244,7 +245,7 @@ class OwnedCloudConnection:
                 pass
 
     def auth_action(self, action, data):
-        if action not in ('browser_begin', 'browser_cancel', 'logout', 'reconnect'):
+        if action not in ('browser_begin', 'browser_open', 'browser_cancel', 'logout', 'reconnect'):
             raise ValueError('不支持的登录操作。')
         clean = {'region': data.get('region', self._region)}
         if action == 'browser_begin' and clean['region'] not in ('CN', 'US'):
@@ -252,6 +253,8 @@ class OwnedCloudConnection:
         with self._mu:
             if self._stop.is_set() or self._busy:
                 raise ValueError('连接操作正在进行，请稍候。')
+            if action == 'browser_open' and (not self._browser or self._browser.expired):
+                raise ValueError('网页登录链接已失效，请重新准备登录。')
             if action == 'browser_begin' and (self._raw or {}).get('logged_in'):
                 raise ValueError('请先退出当前队列账号。')
             self._busy = True
@@ -357,6 +360,24 @@ class OwnedCloudConnection:
                     self._open(self._region)
                 elif action == 'browser_begin':
                     self._begin_browser(data['region'])
+                elif action == 'browser_open':
+                    browser = self._browser
+                    if not browser or browser.expired:
+                        raise ComponentRejected('网页登录链接已失效，请重新准备登录。')
+                    try:
+                        launch = browser.launch_payload()
+                    except ValueError as exc:
+                        raise ComponentRejected(str(exc)) from None
+                    # Launch from a fresh helper BEFORE any SDK initialization.
+                    # The SDK process redirects APPDATA to its private session root;
+                    # a user's browser must retain the normal Windows environment.
+                    launcher = self._factory(self._executable)
+                    try:
+                        launcher.call('open_login_browser', launch)
+                    finally:
+                        launcher.close()
+                    with self._mu:
+                        self._note = '已请求在系统浏览器中打开登录页，请完成登录后返回 Orca。'
                 elif action == 'browser_cancel':
                     self._cancel_browser()
                     with self._mu:
@@ -387,7 +408,7 @@ class OwnedCloudConnection:
                     done.put((False, str(exc) if isinstance(exc, OwnedConnectionError) else '独立连接操作失败。'))
             finally:
                 data.clear()
-                if action in ('browser_begin', 'browser_cancel', 'logout', 'reconnect'):
+                if action in ('browser_begin', 'browser_open', 'browser_cancel', 'logout', 'reconnect'):
                     with self._mu:
                         self._busy = False
         self._cancel_browser()

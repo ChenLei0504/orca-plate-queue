@@ -6,6 +6,7 @@
 #include <iostream>
 #include <io.h>
 #include <fcntl.h>
+#include "browser_launch.hpp"
 
 int main(int argc, char**) {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -51,6 +52,15 @@ int main(int argc, char**) {
                 auto ticket = parsed->find("payload.ticket").as_string();
                 code = oq_owned_ticket_v1(ticket.data(), static_cast<unsigned int>(ticket.size()));
                 if (!ticket.empty()) SecureZeroMemory(ticket.data(), ticket.size());
+            }
+            else if (action == "open_login_browser") {
+                const auto url = queue_browser::signin_url(parsed->find("payload"));
+#ifdef OQ_BROWSER_LAUNCH_FIXTURE
+                // Tests verify the exact destination without launching a browser.
+                if (!url.empty()) { reply["result"] = url; code = 0; }
+#else
+                code = queue_browser::open(url);
+#endif
             }
             else if (action == "connect") code = oq_owned_connect_v1();
             else if (action == "refresh") code = oq_owned_refresh_v1();

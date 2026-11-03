@@ -102,6 +102,50 @@ class BrowserProviderTests(unittest.TestCase):
         eventually(lambda:not self.provider.status()['busy'])
         self.assertFalse(self.provider.status()['logged_in'])
 
+    def test_browser_only_opens_on_click_with_private_callback_parameters(self):
+        browser=self.begin();process=self.provider._process;opened=[];launchers=[]
+        def factory(executable):
+            launcher=FakeProcess(executable);launchers.append(launcher);original=launcher.call
+            def capture(action,payload=None):
+                if action=='open_login_browser':opened.append(payload)
+                return original(action,payload)
+            launcher.call=capture
+            return launcher
+        self.provider._factory=factory
+        self.provider.refresh();eventually(lambda:self.provider._queue.empty())
+        self.assertEqual(opened,[])
+        self.provider.auth_action('browser_open',{'url':'https://evil.invalid','region':'US'})
+        eventually(lambda:not self.provider.status()['busy'])
+        self.assertEqual(opened,[browser.launch_payload()])
+        self.assertEqual(opened[0]['region'],'CN')
+        self.assertNotIn('url',opened[0])
+        self.assertEqual(len(launchers),1)
+        self.assertTrue(launchers[0].closed)
+        self.assertNotIn('open',launchers[0].calls)
+        self.assertNotIn('open_login_browser',process.calls)
+        self.assertFalse(process.closed)
+        self.assertTrue(self.provider.status()['browser_waiting'])
+        self.provider.auth_action('browser_cancel',{})
+        eventually(lambda:not self.provider.status()['busy'])
+        with self.assertRaises(ValueError):self.provider.auth_action('browser_open',{})
+
+    def test_browser_launch_failure_preserves_link_for_manual_copy(self):
+        browser=self.begin();process=self.provider._process;launchers=[]
+        def factory(executable):
+            launcher=FakeProcess(executable);launchers.append(launcher)
+            def reject(action,payload=None):
+                raise ComponentRejected('无法打开系统浏览器，请复制登录链接到 Chrome 或 Edge')
+            launcher.call=reject
+            return launcher
+        self.provider._factory=factory
+        self.provider.auth_action('browser_open',{})
+        eventually(lambda:not self.provider.status()['busy'])
+        self.assertFalse(self.provider.status()['failed'])
+        self.assertEqual(self.provider.status()['browser_url'],browser.url)
+        self.assertIn('复制',self.provider.status()['note'])
+        self.assertTrue(launchers[0].closed)
+        self.assertFalse(process.closed)
+
     def test_cancel_reconnect_and_unload_destroy_pending_login(self):
         for action in ('browser_cancel','reconnect'):
             browser=self.begin()

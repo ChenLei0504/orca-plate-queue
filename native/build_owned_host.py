@@ -25,6 +25,7 @@ def build(fake=False):
             '/DABI_VERSION=0x020804', '/D_ITERATOR_DEBUG_LEVEL=0', '/DNOMINMAX',
             '/I'+str(SOURCE/'include'), '/I'+str(ROOT), '/I'+str(out)]
     if fake:
+        args.append('/DOQ_BROWSER_LAUNCH_FIXTURE')
         subprocess.run(args + ['/LD', str(ROOT/'test_owned_backend.cpp'), str(SOURCE/'src/json_lite.cpp'),
                               '/link', '/OUT:'+str(out/'orca_queue_owned_backend.dll')], cwd=out, env=env, check=True)
     else:

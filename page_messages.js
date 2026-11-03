@@ -1,6 +1,12 @@
 /* Application-authored messages only; user file and device names are never translated. */
 window.QueueMessages=Object.freeze({
   "en": {
+    "在系统浏览器中登录": "Sign in using the system browser",
+    "若浏览器未打开，请复制链接到 Chrome 或 Edge：": "If no browser opens, copy the link into Chrome or Edge:",
+    "网页登录链接已失效，请重新准备登录。": "The browser sign-in link has expired. Prepare a new sign-in link.",
+    "已请求在系统浏览器中打开登录页，请完成登录后返回 Orca。": "Requested sign-in in the system browser. Complete sign-in, then return to Orca.",
+    "无法打开系统浏览器，请复制登录链接到 Chrome 或 Edge": "Could not open the system browser. Copy the sign-in link into Chrome or Edge",
+
     "使用拓竹官方网页登录。当前 Orca 不提供共享登录接口，本队列需要单独授权；打印机保持云模式，保留 Bambu Handy。": "Sign in on the official Bambu website. Orca does not expose session sharing, so authorize this queue separately. Keep the printer in cloud mode to retain Bambu Handy.",
     "准备网页登录": "Prepare browser sign-in",
     "取消网页登录": "Cancel browser sign-in",

@@ -1,13 +1,13 @@
 # 独立云连接版 / Standalone cloud preview
 
-当前产物：**0.8.0a1 · 20261103.6**，本地可安装测试包，尚未发布到市场。
+当前产物：**0.8.0a1 · 20261103.7**，本地可安装测试包，尚未发布到市场。
 旧的 0.7.8 分离安装版构建入口保持不变。
 
 ## 用户使用方式
 
 1. 保存工程，暂停旧版的所有队列，核对未结束任务，然后停用旧版队列插件。
 2. 在 Orca 插件管理中安装 `standalone-dist/0.8.0a1/Orca_Plate_Queue_win_x86_64.whl`。
-3. 打开“打印队列 → 连接说明”，选择中国大陆或全球区，点击“准备网页登录”，再打开拓竹官方登录页；只在官方网站输入账号与验证码，完成后返回 Orca。
+3. 打开“打印队列 → 连接说明”，选择中国大陆或全球区，点击“准备网页登录”，再点击“在系统浏览器中登录”；只在官方网站输入账号与验证码，完成后返回 Orca。
 4. 先核对 A1 / P1S 设备及 AMS 槽位，再导入单盘切片 3MF 配置耗材和份数。
 
 不用运行旧连接组件安装器，也不要求安装 Open Bamboo、Docker、BamDude 或 Bambuddy。
@@ -84,7 +84,7 @@ python -m unittest test_standalone_release -v
 
 ## English
 
-**0.8.0a1 / 20261103.6** is a locally built installable preview, not a validated public release.
+**0.8.0a1 / 20261103.7** is a locally built installable preview, not a validated public release.
 One wheel includes the UI, scheduler, a private child process, pinned Open Bamboo networking code and compatible Microsoft runtimes. Users do not need a separate server, installer or Open Bamboo plugin.
 
 Install through Orca’s plugin manager after pausing/reconciling and disabling the old queue. Prepare browser sign-in in the plugin and enter credentials only on the official Bambu website. Keep the printer in cloud mode. Existing networking files are untouched; old `v3` queues are separate from `v4-cloud`.
@@ -126,3 +126,15 @@ Errors now identify the authentication stage and fixed failure category without 
 本机接收器需要声明 `http://127.0.0.1` 网络权限，绑定随机端口、使用每次不同的随机路径，五分钟有效，仅接收一次票据。新权限仍由用户在 Orca 中确认。取消、重连、退出和卸载会关闭接收器，不重放认证或打印指令。详见 [登录流程与验收边界](browser-login.md)。
 
 The preview now uses official browser sign-in and the pinned Open Bamboo core’s ticket exchange. It does not inherit Orca’s existing session, read other applications’ credentials or replace networking files. The loopback callback is explicitly declared and short-lived. Real regional website redirects and authenticated device connectivity still require user testing; offline fixtures alone cannot establish cloud compatibility.
+
+### 20261103.7：系统浏览器入口 / System-browser launch
+
+已确认的宿主行为：Orca 2.5.0-rc 的 `PluginPage::on_new_window` 对新窗口链接调用 `browser()->LoadURL(url)`，因此 `target="_blank"` 会覆盖插件页面。普通页面测试并不能模拟这一宿主行为。用户看到的无地址栏登录页面与此问题相符；官网完成认证并不代表队列已接收票据。
+
+新入口是按钮，向私有组件发送专用 `open_login_browser` 动作。未初始化 SDK 的临时私有组件用 Windows `ShellExecuteW` 打开系统默认浏览器，随后退出，避免浏览器继承联网核心重定向后的 APPDATA；只根据当前地区、本机随机端口和随机路径生成拓竹 HTTPS 登录地址，不接受任意 URL、文件路径或命令行。只在用户点击时打开，不会在轮询、启动或重连时自动打开。失败保留复制链接备用方式。
+
+原生测试构建禁用真实浏览器启动，核对国区／全球区目的地址和无效参数拒绝；页面测试核对按钮不会导航、不会传入 URL 或认证资料。原生构建与权限声明已同步。真实官网回调、会话保存与重启恢复仍待用户验收，未以离线测试代替。
+
+[Orca 宿主源码](https://github.com/OrcaSlicer/OrcaSlicer/blob/af2ffb8c/src/slic3r/plugin/host/PluginPages.cpp#L132)
+
+Orca’s plugin page redirects new-window links into its own WebView. The preview now uses a dedicated button and a fixed-purpose native launcher to open the system default browser without navigating away from the queue. Only generated Bambu HTTPS URLs are accepted. Launch failures preserve the manual copy fallback. Browser sign-in and session restoration still require real-account validation.

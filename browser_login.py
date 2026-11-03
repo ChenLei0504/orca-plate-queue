@@ -122,6 +122,12 @@ if(a.length===1){fetch(location.pathname,{method:'POST',headers:{'Content-Type':
             self._server.server_close()
             raise
 
+    def launch_payload(self):
+        if self.expired or self._stop.is_set() or self._taken:
+            raise ValueError('网页登录链接已失效，请重新准备登录。')
+        return {'region': self.region, 'port': self._server.server_port,
+                'nonce': self._path.removeprefix('/callback/')}
+
     def _serve(self):
         try:
             while not self._stop.is_set() and time.monotonic() < self._deadline:

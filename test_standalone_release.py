@@ -41,6 +41,7 @@ class StandaloneReleaseTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(archive.read('orca_plate_queue/native-bin/'+name)).hexdigest(),digest)
             permissions=json.loads(archive.read('orca_plate_queue/permissions.json'))
             self.assertTrue(permissions['process_execution'])
+            self.assertIn('fixed Bambu HTTPS',permissions['browser_launch'])
             self.assertTrue(permissions['bundled_native_libraries'])
             self.assertFalse(permissions['other_plugin_file_modification'])
             self.assertFalse(permissions['host_account_discovery'])
@@ -106,9 +107,10 @@ class StandaloneReleaseTests(unittest.TestCase):
                 self.assertFalse((folder/'storage/v3').exists())
                 # No account operation may proceed while a queue could still send.
                 page._service.data['running']=True
-                page.on_message({'action':'cloud_browser_begin','region':'CN'})
-                self.assertFalse(page.reply['success'])
-                self.assertIn('暂停所有队列',page.reply['note'])
+                for action in ('cloud_browser_begin','cloud_browser_open'):
+                    page.on_message({'action':action,'region':'CN'})
+                    self.assertFalse(page.reply['success'])
+                    self.assertIn('暂停所有队列',page.reply['note'])
                 page._service.data['running']=False
                 process=page._connection.native._process
                 page.on_unload();page=None
