@@ -24,7 +24,9 @@
 #pragma warning(disable:4190)
 class BBLModelTask;
 
+#ifndef QB_EXPORT
 #define QB_EXPORT extern "C" __declspec(dllexport)
+#endif
 #ifndef QB_BACKEND_FILENAME
 #define QB_BACKEND_FILENAME L"orca_queue_upstream_020300_b14f880.dll"
 #endif

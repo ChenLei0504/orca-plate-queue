@@ -1,37 +1,68 @@
-"""Whitelist snapshots and commands from the in-process native queue bridge."""
+"""Validate one explicitly selected queue connection; never combine provider sessions."""
 import math
 from printer_models import canonical_model
 from native_connection import NativeQueueBridge, NativeBridgeBindingError
 
 
 class PrinterConnection:
-    def __init__(self, host):
+    def __init__(self, host, *, provider=None, mode='native'):
+        if mode not in ('native', 'owned_cloud'):
+            raise ValueError('未知的队列连接方式。')
+        if mode == 'owned_cloud' and provider is None:
+            raise ValueError('独立云连接需要显式提供连接组件。')
+        if provider is not None and getattr(host, 'queue_bridge_v1', None) is not None:
+            raise ValueError('不能同时使用宿主桥接和独立连接。')
         self.host = host
-        self.native = NativeQueueBridge()
+        self.mode = mode
+        self.native = provider if provider is not None else NativeQueueBridge()
+        self._closed = False
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        if self.mode == 'owned_cloud':
+            close = getattr(self.native, 'close', None)
+            if close is not None:
+                close()
+
+    def _ensure_open(self):
+        if self._closed:
+            raise RuntimeError('队列连接已关闭。')
 
     def refresh(self):
+        self._ensure_open()
         if getattr(self.host,'queue_bridge_v1',None) is None:
             self.native.refresh()
 
     def command(self, request):
+        self._ensure_open()
+        if self.mode == 'owned_cloud':
+            status = self.snapshot()
+            if not status.get('available') or not status.get('can_submit'):
+                raise RuntimeError('独立云连接尚未就绪，不能发送打印控制。')
         return (getattr(self.host, 'queue_bridge_v1', None) or self.native).command(request)
 
     def watch(self, device_id):
+        self._ensure_open()
         if device_id:
             if len(self.native.watch_ids) >= 32 and device_id not in self.native.watch_ids:
                 raise ValueError('最多同时监控 32 台打印机。')
             self.native.watch_ids.add(device_id)
 
     def snapshot(self):
-        empty = dict(available=False, can_submit=False, devices=[],
+        empty = dict(available=False, can_submit=False, devices=[], connection_mode=self.mode,
                      reason='当前 Orca 未提供原生队列桥接；Open Bamboo 联网正常也不会自动向页面开放设备和 AMS。')
         try:
+            self._ensure_open()
             bridge = getattr(self.host, 'queue_bridge_v1', None) or self.native
             raw = bridge.snapshot()
-            if not isinstance(raw, dict) or type(raw.get('protocol')) is not int or raw['protocol'] != 1 or raw.get('origin') != 'orca-native-queue':
+            if not isinstance(raw, dict) or type(raw.get('protocol')) is not int or raw['protocol'] != 1 or raw.get('origin') != ('orca-owned-cloud' if self.mode == 'owned_cloud' else 'orca-native-queue'):
                 raise ValueError('桥接协议不匹配。')
-            if raw.get('cloud_session_reused') is not True:
-                raise ValueError('桥接未复用 Orca 当前云端会话。')
+            if raw.get('cloud_session_reused') is not (self.mode == 'native'):
+                raise ValueError('队列连接的会话归属不匹配。')
+            if self.mode == 'owned_cloud' and raw.get('attached') is not True:
+                raise RuntimeError('插件独立云连接尚未初始化。')
             rows = raw.get('devices')
             if not isinstance(rows, list) or len(rows) > 100:
                 raise ValueError('设备列表格式错误。')
@@ -104,11 +135,12 @@ class PrinterConnection:
                 devices.append(device)
             records=raw.get('commands',[])
             commands=[{k:v for k,v in r.items() if k in ('request_id','device_id','action','tag','status','stage','progress','code') and type(v) in (str,int,float)} for r in records if isinstance(r,dict)] if isinstance(records,list) and len(records)<=4096 else []
-            return dict(available=True, can_submit=raw.get('can_submit') is True, devices=devices, commands=commands,
+            return dict(available=True, can_submit=raw.get('can_submit') is True and raw.get('prototype') is not True, devices=devices, commands=commands,
+                        connection_mode=self.mode,
                         material_mapping_ready=raw.get('material_mapping_ready') is True,
                         upload_busy=raw.get('upload_busy') is True,
                         refreshing=raw.get('refreshing') is True,
-                        reason=raw.get('refresh_error') or ('设备列表读取中…' if raw.get('refreshing') and not devices else '原生桥接已连接，复用 Orca 云端会话。'))
+                        reason=raw.get('refresh_error') or ('设备列表读取中…' if raw.get('refreshing') and not devices else ('插件独立云连接已连接。' if self.mode == 'owned_cloud' else '原生桥接已连接，复用 Orca 云端会话。')))
         except NativeBridgeBindingError as exc:
             empty['reason'] = str(exc)
             empty['error_code'] = 'native_binding_failed'

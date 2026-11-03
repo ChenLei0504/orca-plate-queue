@@ -836,7 +836,54 @@ window.QueueMessages=Object.freeze({
     "：": ": ",
     "；": "; ",
     "，": ", ",
-    "。": "."
+    "。": ".",
+    "独立云连接": "Independent cloud connection",
+    "直接登录本插件的 Bambu Cloud 连接。无需安装其他联网插件；打印机保持云模式，Handy 可继续使用。": "Sign in to this plugin’s own Bambu Cloud connection. No additional networking plugin is required. Keep the printer in cloud mode to retain Handy access.",
+    "账号地区": "Account region",
+    "中国大陆": "Mainland China",
+    "全球区": "Global",
+    "邮箱或中国大陆手机号": "Email or mainland China mobile number",
+    "验证码": "Verification code",
+    "获取验证码": "Send code",
+    "登录": "Sign in",
+    "重新连接": "Reconnect",
+    "退出本插件账号": "Sign out of this plugin",
+    "稍后重试": "Try again later",
+    "连接组件已随插件提供 · 保留 Bambu Handy": "Networking component included · Keep Bambu Handy",
+    "验证码仅用于本次登录。登录会话保存在本插件的私有目录，仅当前 Windows 用户与系统可访问；尚未加密。退出只清除本插件会话。": "The code is used only for this sign-in. The session is stored in this plugin’s private directory, accessible to the current Windows user and SYSTEM. It is not encrypted. Signing out clears only this plugin’s session.",
+    "独立云连接测试版：首次使用请先核对打印机和 AMS；连续打印及 Handy 同时在线仍需实机验收。": "Independent cloud preview: verify your printer and AMS before use. Continuous printing and simultaneous Handy operation still require real-device validation.",
+    "请登录 Bambu Cloud。": "Please sign in to Bambu Cloud.",
+    "正在处理连接请求…": "Processing connection request…",
+    "验证码已发送，请查收后登录。": "Code sent. Check your messages and sign in.",
+    "已登录，正在连接打印机。": "Signed in. Connecting to printers.",
+    "插件独立云连接已连接。": "The plugin’s independent cloud connection is ready.",
+    "已退出本插件账号。": "Signed out of this plugin.",
+    "请选择中国大陆或全球区。": "Select Mainland China or Global.",
+    "请输入有效的邮箱或中国大陆手机号。": "Enter a valid email or mainland China mobile number.",
+    "登录服务返回的信息过大。": "The sign-in response exceeded the size limit.",
+    "请求过于频繁，请稍后再试。": "Too many requests. Try again later.",
+    "云端拒绝了登录请求，请检查账号地区或稍后重试。": "The cloud rejected sign-in. Check your account region or try again later.",
+    "账号或验证码无效，请重新获取验证码。": "Invalid account or code. Request a new code.",
+    "登录服务暂时不可用，请稍后重试。": "Sign-in is temporarily unavailable. Try again later.",
+    "无法连接登录服务，请检查网络后重试。": "Unable to reach sign-in services. Check the network and retry.",
+    "验证码发送失败，请核对账号和地区。": "Could not send the code. Check your account and region.",
+    "请输入六位验证码。": "Enter the six-digit verification code.",
+    "云端未返回有效登录会话，请重新获取验证码。": "No valid session was returned. Request a new code.",
+    "连接操作正在进行，请稍候。": "A connection operation is in progress. Please wait.",
+    "请先退出当前队列账号。": "Sign out of the current queue account first.",
+    "请稍后再发送验证码。": "Wait before requesting another code.",
+    "请先暂停所有队列，并核对未结束任务后再更改连接。": "Pause all queues and reconcile unfinished tasks before changing the connection.",
+    "独立连接启动失败，请检查插件文件和权限。": "Independent connection failed to start. Check plugin files and permissions.",
+    "连接组件无响应或已退出；已暂停连接，请核对当前任务后重新连接。": "The networking component stopped responding or exited. Check the current task before reconnecting.",
+    "独立连接已关闭，请重新连接。": "The independent connection is closed. Reconnect to continue.",
+    "独立连接不可用，请重新连接。": "The independent connection is unavailable. Reconnect to continue.",
+    "连接请求繁忙，请稍后重试。": "The connection is busy. Try again shortly.",
+    "独立连接协议不匹配，请重新安装插件。": "Independent connection protocol mismatch. Reinstall the plugin.",
+    "连接组件文件清单无效，请重新安装插件。": "Invalid component file manifest. Reinstall the plugin.",
+    "连接组件文件校验失败，请重新安装插件。": "Component file verification failed. Reinstall the plugin.",
+    "任务指令结果未知；请核对打印机，勿重复发送。": "The command result is unknown. Check the printer; do not send it again.",
+    "Bambu Cloud 已连接": "Bambu Cloud connected",
+    "通过本插件的独立 Bambu Cloud 连接。": "Connected through this plugin’s independent Bambu Cloud session."
   },
   "patterns": [
     [
@@ -1002,6 +1049,14 @@ window.QueueMessages=Object.freeze({
     [
       "页面构建：精简队列版 · {value}",
       "Page build: Queue edition · {0}"
+    ],
+    [
+      "独立云连接测试版 · {value}",
+      "Independent cloud preview · {0}"
+    ],
+    [
+      "页面构建：独立云连接测试版 · {value}",
+      "Page build: Independent cloud preview · {0}"
     ]
   ]
 });

@@ -1,4 +1,4 @@
-/* Local Orca page bridge. No credentials or HTTP file uploads in this page. */
+/* Local Orca page bridge. Verification codes are temporary; no tokens or HTTP file uploads in this page. */
 const PAGE_BUILD_ID='20261102.5';
 const I18n=window.QueueI18n,tr=(key,params)=>I18n.tr(key,params),message=value=>I18n.message(value);
 I18n.initialize(document);
@@ -22,6 +22,21 @@ function setPill(id,text,tone=''){const e=$(id);e.className='status-pill'+(tone?
 function renderComponents(reply){
   $('openConnection').hidden=false;
   $('defaultSwap').hidden=reply?.default_swap_available===false;
+  const owned=reply?.connection_mode==='owned_cloud',auth=reply?.cloud_auth||{};
+  $('cloudLoginPanel').hidden=!owned;$('legacyConnectionPanel').hidden=owned;
+  if(owned){
+    $('connectionTitle').textContent=tr('独立云连接');
+    $('connectionSubtitle').textContent=tr('连接组件已随插件提供 · 保留 Bambu Handy');
+    $('cloudAuthNote').textContent=message(auth.note||'请登录 Bambu Cloud。');
+    const logged=auth.logged_in===true,working=auth.busy===true;
+    for(const id of ['cloudRegion','cloudAccount','cloudCode','cloudLogin'])$(id).disabled=working||logged;
+    if(logged||!$('cloudRegion').dataset.initialized){$('cloudRegion').value=auth.region||'CN';$('cloudRegion').dataset.initialized='true'}
+    $('cloudSendCode').disabled=working||logged||auth.cooldown>0;
+    $('cloudSendCode').textContent=auth.cooldown>0?tr('稍后重试')+' ('+auth.cooldown+'s)':tr('获取验证码');
+    $('cloudLogout').disabled=working||!logged;$('cloudReconnect').disabled=working;
+    if(logged){$('cloudCode').value='';$('cloudAccount').value=''}
+    return;
+  }
   const connected=reply?.connection?.available===true;
   $('componentSummary').textContent=connected?tr('已复用 Orca 当前连接组件与 Bambu Cloud 登录会话。'):tr('尚未连接。首次使用请单独安装连接组件。');
   $('componentSeries').textContent=tr('支持 Windows x64 · 接口 02.03.00 / 02.08.01 / 02.08.04');
@@ -71,7 +86,7 @@ function clearDropHints(){document.querySelectorAll('.drop-before,.drop-after').
 function isFileDrag(e){return Array.from(e.dataTransfer?.types||[]).includes('Files')}
 function finishDragging(){draggingId=null;clearDropHints();document.querySelectorAll('.moving').forEach(e=>e.classList.remove('moving'));if(latestReply&&!busy)applyState(latestReply)}
 function scrollToPanel(id){const e=$(id);e.scrollIntoView({behavior:'smooth',block:'center'});return e}
-function focusDevice(){scrollToPanel('printerFleet');const first=$('fleetQueues').querySelector('button:not(:disabled)');if(first)first.focus();else feedback(tr('请先在 Orca 首页登录 Bambu Cloud，并确认 A1 或 P1S 在线。'),true)}
+function focusDevice(){if(latestReply?.connection_mode==='owned_cloud'&&!latestReply?.cloud_auth?.logged_in){renderComponents(latestReply);showDialog($('connectionDialog'));return}scrollToPanel('printerFleet');const first=$('fleetQueues').querySelector('button:not(:disabled)');if(first)first.focus();else feedback(tr('请先在 Orca 首页登录 Bambu Cloud，并确认 A1 或 P1S 在线。'),true)}
 async function selectQueue(device_id){if(busy||switchingQueue||device_id===viewQueueId)return;switchingQueue=true;if(latestReply)renderFleet(latestReply);try{await checkedSend('select_queue',{device_id})}catch(e){feedback(message(e.message),true)}finally{switchingQueue=false;if(latestReply){$('quickAdd').disabled=busy||!boundDevice();renderFleet(latestReply)}}}
 function machineStatus(q,d){
   if(q?.running&&['syncing','verifying_finish','reconnecting'].includes(q.monitor_stage))return [q.monitor_stage==='reconnecting'?tr('正在恢复连接'):q.monitor_stage==='verifying_finish'?tr('正在确认完成'):tr('正在核对状态'),'warning'];
@@ -121,8 +136,8 @@ function renderConnection(data){
   $('importTarget').textContent=d?tr('加入 ')+d.name+tr(' · 随后配置耗材和份数'):tr('先选择打印机，再配置耗材和份数');
   $('quickAdd').disabled=!d||busy||switchingQueue;
   setPill('printerBadge',fresh?(d.telemetry?.gcode_state==='IDLE'?tr('空闲'):tr('在线')):d?(d.online?tr('等待回报'):tr('离线')):tr('未选择'),fresh?'':d?'warning':'muted');
-  setPill('cloudBadge',d?.cloud_connected?tr('Handy 云端已连接'):tr('等待云端连接'),d?.cloud_connected?'':'muted');
-  $('connectionStatus').textContent=connection.available?tr('通过 Orca 的 Bambu Cloud 连接。'):message(connection.reason)||tr('正在连接打印机…');
+  setPill('cloudBadge',d?.cloud_connected?tr(latestReply?.connection_mode==='owned_cloud'?'Bambu Cloud 已连接':'Handy 云端已连接'):tr('等待云端连接'),d?.cloud_connected?'':'muted');
+  $('connectionStatus').textContent=connection.available?tr(latestReply?.connection_mode==='owned_cloud'?(latestReply?.cloud_auth?.logged_in?'通过本插件的独立 Bambu Cloud 连接。':'请登录 Bambu Cloud。'):'通过 Orca 的 Bambu Cloud 连接。'):message(connection.reason)||tr('正在连接打印机…');
   const serviceUpdated=latestReply?.build_id===PAGE_BUILD_ID,historyAvailable=connection.available&&!!d?.monitor_epoch,bindingFailed=connection.error_code==='native_binding_failed';
   $('buildService').textContent=serviceUpdated?tr('队列服务：已更新（')+PAGE_BUILD_ID+tr('）'):tr('队列服务：尚未匹配此构建，请重新加载插件');
   $('buildHistory').textContent=bindingFailed?tr('连接组件：绑定失败，请更新插件并重启 Orca'):!connection.available||!d?tr('连接组件：等待打印机状态'):historyAvailable?tr('连接组件：状态历史已启用'):tr('连接组件：旧桥接，需更新组件并完整重启 Orca');
@@ -414,6 +429,16 @@ document.addEventListener('click',e=>{if(!e.target.closest('#importOptions'))$('
 $('quickAdd').onclick=()=>guide('jobs');
 $('openConnection').onclick=()=>{renderComponents(latestReply);showDialog($('connectionDialog'))};
 $('closeConnection').onclick=()=>$('connectionDialog').close();
+for(const [id,action] of [['cloudSendCode','cloud_send_code'],['cloudLogin','cloud_login'],['cloudReconnect','cloud_reconnect'],['cloudLogout','cloud_logout']]){
+  $(id).onclick=async()=>{
+    const data={region:$('cloudRegion').value,account:$('cloudAccount').value.trim(),code:$('cloudCode').value.trim()};
+    if(action==='cloud_login')$('cloudCode').value='';
+    $(id).disabled=true;
+    try{await checkedSend(action,action==='cloud_login'||action==='cloud_send_code'?data:{})}catch(e){feedback(e.message,true)}
+    finally{data.code='';renderComponents(latestReply)}
+  };
+}
+$('connectionDialog').addEventListener('close',()=>{$('cloudCode').value='';$('cloudAccount').value=''});
 $('connectionDownloadUrl').onclick=()=>$('connectionDownloadUrl').select();
 for(const [id,dialog] of [['closeSettings','settingsDialog'],['closeSwap','swapDialog'],['cancelSwap','swapDialog'],['closeStart','startDialog'],['closeObjects','objectsDialog'],['closeAction','actionDialog'],['cancelAction','actionDialog'],['closePreview','previewDialog'],['closeHelp','helpDialog']])$(id).onclick=()=>$(dialog).close();
 $('pendingTab').onclick=()=>{queueFilter='pending';renderJobs(latestReply?.data||{jobs:[]})};$('historyTab').onclick=()=>{queueFilter='history';renderJobs(latestReply?.data||{jobs:[]})};

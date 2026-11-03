@@ -385,5 +385,29 @@ test('feedback stays inside the top modal and returns to the page on close',asyn
  const t=launch();try{t.w.openSwap();t.w.feedback('saved fixture');assert.equal(t.el('feedback').parentElement,t.el('swapDialog'));assert.equal(t.el('feedback').classList.contains('dialog-feedback'),true);t.w.showDialog(t.el('settingsDialog'));t.w.feedback('nested error',true);assert.equal(t.el('feedback').parentElement,t.el('settingsDialog'));t.el('settingsDialog').close();assert.equal(t.el('feedback').parentElement,t.el('swapDialog'));t.el('swapDialog').close();assert.equal(t.el('feedback').parentElement,t.w.document.body);assert.equal(t.el('feedback').classList.contains('dialog-feedback'),false);assert.equal(t.el('feedback').hidden,false)}finally{t.close()}
 });
 
+test('owned cloud login hides legacy installer and clears one-time codes',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'请登录 Bambu Cloud。',cooldown:0};
+ const t=launch(state);try{
+  t.el('openConnection').click();assert.equal(t.el('cloudLoginPanel').hidden,false);assert.equal(t.el('legacyConnectionPanel').hidden,true);
+  t.el('cloudAccount').value='fixture@example.com';t.el('cloudCode').value='123456';t.el('cloudLogin').click();await tick();
+  const req=t.requests.find(r=>r.action==='cloud_login');assert.equal(req.account,'fixture@example.com');assert.equal(req.code,'123456');assert.equal(t.el('cloudCode').value,'');
+  state.cloud_auth={region:'CN',logged_in:true,busy:false,note:'插件独立云连接已连接。',cooldown:0};t.set(state);
+  assert.equal(t.el('cloudAccount').value,'');assert.equal(t.el('cloudLogin').disabled,true);assert.equal(t.el('cloudLogout').disabled,false);
+  await chooseLanguage(t,'en');assert.match(t.el('connectionTitle').textContent,/Independent cloud/);
+  t.el('cloudLogout').click();await tick();assert.equal(t.requests.at(-1).account,undefined);
+ }finally{t.close()}
+});
+test('verification-code cooldown and busy state prevent repeated UI requests',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'验证码已发送，请查收后登录。',cooldown:45};
+ const t=launch(state);try{assert.equal(t.el('cloudSendCode').disabled,true);t.el('cloudSendCode').click();assert.equal(t.requests.some(r=>r.action==='cloud_send_code'),false);
+ state.cloud_auth.busy=true;t.set(state);assert.equal(t.el('cloudReconnect').disabled,true);assert.equal(t.el('cloudLogin').disabled,true);
+ }finally{t.close()}
+});
+
+test('cloud region choice survives polling before entering an account',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'请登录 Bambu Cloud。',cooldown:0};
+ const t=launch(state);try{t.el('cloudRegion').value='US';t.set(state);assert.equal(t.el('cloudRegion').value,'US');t.el('cloudAccount').value='fixture@example.com';t.el('cloudSendCode').click();await tick();assert.equal(t.requests.find(r=>r.action==='cloud_send_code').region,'US')}finally{t.close()}
+});
+
 module.exports={fixture,multiFixture,amsFixture,emptyImportFixture,bundledFixture};
 if(require.main===module)(async()=>{for(const [name,fn] of tests){await fn();console.log('PASS',name)}console.log(tests.length+' page workflow tests passed; no real printer calls.');})().catch(e=>{console.error(e);process.exitCode=1});

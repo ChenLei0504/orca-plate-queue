@@ -28,6 +28,14 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 <a id="zh-cn"></a>
 
+## 独立云连接测试版 / Standalone cloud preview
+
+已新增 **0.8.0a1** 的独立构建入口：一个 wheel 内置连接组件，在插件内验证码登录，无需单独安装 Open Bamboo 或连接组件 EXE。保留 Handy 是首版验收要求，真实云连接和连续打印仍待验证，尚未发布到市场。
+
+The **0.8.0a1** standalone preview bundles its private connection process in one wheel and provides verification-code sign-in. No separate Open Bamboo plugin or installer is needed. Real cloud login, concurrent Handy access and continuous printing still require acceptance tests.
+
+构建、安装、回退及测试边界见 [独立云连接说明 / Standalone cloud notes](docs/standalone-cloud.md)。以下为现有 0.7.8 分离安装版说明。
+
 ## 中文说明
 
 ### 这是什么？
@@ -85,7 +93,7 @@ Orca Plate Queue 将多个**单盘切片 3MF**排成队列，每台打印机独�
 
 另有正在验证的[兼容适配器方案](兼容适配器说明.txt)：按 ABI 和导出函数检查，原样保留用户安装的 Open Bamboo 核心；更新后可重新适配。本地验证包尚未替换云端默认下载，不表示已完成实机验收。
 
-长期方案见[独立连接接口草案](docs/provider-contract.md)：独立 DLL 原型和队列识别已完成，仍需 Orca / Open Bamboo 提供宿主接口，当前不能替代连接安装器。
+新的产品方向见[独立云连接版设计与验收](docs/standalone-cloud.md)：目标是一次安装、保留 Handy、不修改其他插件。当前仅有隔离原型，尚不能作为发布包使用。旧[宿主接口草案](docs/provider-contract.md)保留供参考。
 
 1. 在 Orca 中打开 **文件 → 插件**，使用“安装插件”选择 `.whl`，并激活队列插件。若使用已发布的 Orca Cloud 订阅版，则在同一 Orca Cloud 账号下刷新并激活。
 2. 确认 Orca 已启用打印机联网功能。保存工程，**完整退出 Orca**。

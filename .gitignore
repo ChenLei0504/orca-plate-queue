@@ -24,3 +24,9 @@ __pycache__/
 /native/compatible-build/
 
 /native/sidecar-build/
+
+/native/owned-cloud-test/
+
+/native/owned-host-build/
+/native/owned-host-fixture/
+/standalone-dist/

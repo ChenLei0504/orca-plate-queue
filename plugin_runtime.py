@@ -22,6 +22,11 @@ from release_info import QUEUE_VERSION, QUEUE_BUILD_ID
 from page_assets import QUEUE_PAGE_HTML
 from page_preferences import PagePreferences
 
+# Enabled only by the explicitly separate standalone test-wheel builder.
+OWNED_CLOUD = False
+if OWNED_CLOUD:
+    from owned_connection import OwnedCloudConnection
+
 if os.name != 'nt' or struct.calcsize('P') != 8:
     raise RuntimeError('Orca Plate Queue 仅支持 Windows x64。')
 
@@ -61,6 +66,8 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
             self._fleet.close()
         elif hasattr(self, '_service'):
             self._service.close()
+        if hasattr(self, '_connection'):
+            self._connection.close()
         self._pending = []
         self._pending_lock = threading.Lock()
         self._error = ''
@@ -70,10 +77,14 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
         try:
             self._storage = str(orca.host.plugin.storage())
             self._preferences = PagePreferences(self._storage)
-            self._fleet = QueueFleet(Path(self._storage) / 'v3', self._connection,
+            if OWNED_CLOUD:
+                self._connection = PrinterConnection(None, provider=OwnedCloudConnection(self._storage), mode='owned_cloud')
+            self._fleet = QueueFleet(Path(self._storage) / ('v4-cloud' if OWNED_CLOUD else 'v3'), self._connection,
                 inspect_plate, inspect_swap_file, DEFAULT_SWAP_FILE, service_factory=QueueService)
             self._service = self._fleet.selected
             self._imports = LocalImports(lambda: self._storage, self._stage_import)
+            if OWNED_CLOUD:
+                self._connection.native.start()
         except Exception as exc:
             self._error = '队列初始化失败：' + str(exc)
 
@@ -90,6 +101,8 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
             self._fleet.close()
         elif hasattr(self, '_service'):
             self._service.close()
+        if hasattr(self, '_connection'):
+            self._connection.close()
 
     def _commit(self, mutate):
         self._ensure()
@@ -240,7 +253,16 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
                 self._connection.refresh()
             connection = self._connection.snapshot()
             note = ''
-            if action in ('connection_install','connection_restore'):
+            if action in ('cloud_send_code', 'cloud_login', 'cloud_logout', 'cloud_reconnect'):
+                if not OWNED_CLOUD:
+                    raise ValueError('当前安装版本未启用独立云连接。')
+                active = any(s.data.get('running') or s.data.get('active') for s in self._fleet.services.values())
+                running = any(s.data.get('running') for s in self._fleet.services.values())
+                if (action != 'cloud_reconnect' and active) or (action == 'cloud_reconnect' and running):
+                    raise ValueError('请先暂停所有队列，并核对未结束任务后再更改连接。')
+                self._connection.native.auth_action(action.removeprefix('cloud_'), data)
+                note = '正在处理连接请求…'
+            elif action in ('connection_install','connection_restore'):
                 raise ValueError('队列插件不安装或恢复联网文件。请退出 Orca 后使用独立连接组件安装器。')
             elif action in ('upload_begin', 'upload_chunk', 'upload_end', 'upload_abort'):
                 result = self._imports.handle(action, dict(data, queue_id=self._data['device_id']))
@@ -457,7 +479,8 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
                                    fleet=self._fleet.snapshot(connection), success=True, note=note, data=self._service.snapshot(),
                                    messages=self._messages + self._data.get('events',[]), last_export=self._last_export,
                                    swap_settings=self._swap_settings(),
-                                   connection_mode='external', version=QUEUE_VERSION,
+                                   connection_mode='owned_cloud' if OWNED_CLOUD else 'external', version=QUEUE_VERSION,
+                                   cloud_auth=self._connection.native.status() if OWNED_CLOUD else None,
                                    default_swap_available=bool(DEFAULT_SWAP_FILE),
                                    swap_plan=swap_plan(self._data['jobs'], self._swap_settings()) if self._data.get('plate_mode','automatic')=='automatic' else [], connection=connection,
                                    setup={j['id']: setup_report(j, j['settings'], connection, self._data['device_id']) for j in self._data['jobs']},
@@ -468,5 +491,12 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
 class PrintQueuePlugin(orca.base):
     def register_capabilities(self):
         if hasattr(orca, 'request_permissions'):
-            orca.request_permissions(threading=True)
+            if OWNED_CLOUD:
+                executable = str(Path(__file__).with_name('native-bin') / 'orca_queue_host.exe')
+                orca.request_permissions(threading=True, process=[executable],
+                    network_http=['https://api.bambulab.cn', 'https://api.bambulab.com', 'https://bambulab.cn'],
+                    network_socket=['api.bambulab.cn:443', 'api.bambulab.com:443', 'bambulab.cn:443',
+                                    'cn.mqtt.bambulab.com:8883', 'us.mqtt.bambulab.com:8883'])
+            else:
+                orca.request_permissions(threading=True)
         orca.register_capability(PrintQueuePage)
