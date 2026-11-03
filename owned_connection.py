@@ -212,6 +212,9 @@ class OwnedCloudConnection:
         if raw.get('logged_in'):
             self._process.call('connect')
         self._failed = False
+        if not raw.get('logged_in'):
+            with self._mu:
+                self._note = '请登录 Bambu Cloud。'
         self._poll()
 
     def _poll(self):
@@ -350,7 +353,12 @@ class OwnedCloudConnection:
         with self._mu:
             self._raw = None
             self._failed = True
-            self._note = str(exc) if isinstance(exc, OwnedConnectionError) else '独立连接启动失败，请检查插件文件和权限。'
+            if 'audit permission required' in str(exc):
+                # Orca denies a background operation before showing its prompt.
+                # Accepting the prompt saves permission but cannot resume Popen.
+                self._note = 'Orca 已暂停连接组件以请求权限。授权完成后，请在“连接说明”中点击“重新连接”，无需重启或重装。'
+            else:
+                self._note = str(exc) if isinstance(exc, OwnedConnectionError) else '独立连接启动失败，请检查插件文件和权限。'
         if self._process:
             self._process.close()
             self._process = None

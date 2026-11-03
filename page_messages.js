@@ -873,6 +873,7 @@ window.QueueMessages=Object.freeze({
     "请先退出当前队列账号。": "Sign out of the current queue account first.",
     "请稍后再发送验证码。": "Wait before requesting another code.",
     "请先暂停所有队列，并核对未结束任务后再更改连接。": "Pause all queues and reconcile unfinished tasks before changing the connection.",
+    "Orca 已暂停连接组件以请求权限。授权完成后，请在“连接说明”中点击“重新连接”，无需重启或重装。": "Orca paused the connection component to request permission. After approving, open Connection guide and click Reconnect. No restart or reinstall is needed.",
     "独立连接启动失败，请检查插件文件和权限。": "Independent connection failed to start. Check plugin files and permissions.",
     "连接组件无响应或已退出；已暂停连接，请核对当前任务后重新连接。": "The networking component stopped responding or exited. Check the current task before reconnecting.",
     "独立连接已关闭，请重新连接。": "The independent connection is closed. Reconnect to continue.",

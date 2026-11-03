@@ -138,6 +138,36 @@ class StartupPermissionTests(unittest.TestCase):
                 finally:provider.close()
 
 
+class PermissionRecoveryTests(unittest.TestCase):
+    def test_audit_prompt_pauses_until_explicit_reconnect(self):
+        with tempfile.TemporaryDirectory() as root:
+            approved=False
+            attempts=[]
+            def factory(executable):
+                attempts.append(executable)
+                if not approved:
+                    raise RuntimeError('Plugin attempted audited operation "open" without permission: audit permission required')
+                return FakeProcess(executable)
+            provider=OwnedCloudConnection(root,process_factory=factory)
+            try:
+                provider.start()
+                eventually(lambda:provider.status()['failed'])
+                self.assertIn('重新连接',provider.status()['note'])
+                self.assertIn('无需重启或重装',provider.status()['note'])
+                provider.refresh()
+                eventually(lambda:provider._queue.empty())
+                self.assertEqual(len(attempts),1, 'Polling must not create repeated permission prompts')
+                approved=True
+                provider.auth_action('reconnect',{})
+                eventually(lambda:provider._raw is not None and not provider.status()['busy'])
+                self.assertFalse(provider.status()['failed'])
+                self.assertFalse(provider.status()['logged_in'])
+                self.assertEqual(provider.status()['note'],'请登录 Bambu Cloud。')
+                self.assertEqual(len(attempts),2)
+                self.assertNotIn('command',provider._process.calls)
+            finally:provider.close()
+
+
 class ProviderTests(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
