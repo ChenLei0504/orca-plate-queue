@@ -1,5 +1,6 @@
 """Validate one explicitly selected queue connection; never combine provider sessions."""
 import math
+import threading
 from printer_models import canonical_model
 from native_connection import NativeQueueBridge, NativeBridgeBindingError
 
@@ -14,7 +15,12 @@ class PrinterConnection:
             raise ValueError('不能同时使用宿主桥接和独立连接。')
         self.host = host
         self.mode = mode
-        self.native = provider if provider is not None else NativeQueueBridge()
+        # Select once. Replacing a host property must never reroute a live queue.
+        host_bridge = getattr(host, 'queue_bridge_v1', None)
+        self._host_provider = host_bridge is not None
+        self.native = provider if provider is not None else (host_bridge if host_bridge is not None else NativeQueueBridge())
+        self._watch_ids = set()
+        self._watch_lock = threading.Lock()
         self._closed = False
 
     def close(self):
@@ -32,8 +38,7 @@ class PrinterConnection:
 
     def refresh(self):
         self._ensure_open()
-        if getattr(self.host,'queue_bridge_v1',None) is None:
-            self.native.refresh()
+        return self.native.refresh()
 
     def command(self, request):
         self._ensure_open()
@@ -41,28 +46,54 @@ class PrinterConnection:
             status = self.snapshot()
             if not status.get('available') or not status.get('can_submit'):
                 raise RuntimeError('独立云连接尚未就绪，不能发送打印控制。')
-        return (getattr(self.host, 'queue_bridge_v1', None) or self.native).command(request)
+        if self._host_provider:
+            status = self.snapshot()
+            if not status.get('available') or not status.get('can_submit'):
+                raise RuntimeError('Orca 队列接口尚未就绪，不能发送打印控制。')
+            if request.get('action') == 'submit' and not status.get('material_mapping_ready'):
+                raise RuntimeError('Orca 队列接口未确认完整耗材映射支持，已阻止发送。')
+        result = self.native.command(request)
+        if self._host_provider and (type(result) is not int or result not in (0, 1)):
+            raise RuntimeError('Orca 队列接口未接受指令。')
+        return result
 
     def watch(self, device_id):
         self._ensure_open()
-        if device_id:
-            if len(self.native.watch_ids) >= 32 and device_id not in self.native.watch_ids:
+        if not device_id:
+            return
+        if not isinstance(device_id, str) or len(device_id) > 256:
+            raise ValueError('打印机编号无效。')
+        with self._watch_lock:
+            watched = self._watch_ids if self._host_provider else self.native.watch_ids
+            if len(watched) >= 32 and device_id not in watched:
                 raise ValueError('最多同时监控 32 台打印机。')
-            self.native.watch_ids.add(device_id)
+            watched.add(device_id)
+
+    def _sync_host_watch(self, devices):
+        if not self._host_provider:
+            return
+        with self._watch_lock:
+            watched = set(self._watch_ids)
+        if watched:
+            ids = sorted(d['id'] for d in devices if d['id'] in watched and canonical_model(d['model']))
+            result = self.native.command(dict(action='watch_many', request_id='watch_queue_devices', device_ids=ids))
+            if type(result) is not int or result not in (0, 1):
+                raise RuntimeError('Orca 未接受队列打印机状态订阅。')
 
     def snapshot(self):
         empty = dict(available=False, can_submit=False, devices=[], connection_mode=self.mode,
                      reason='当前 Orca 未提供原生队列桥接；Open Bamboo 联网正常也不会自动向页面开放设备和 AMS。')
         try:
             self._ensure_open()
-            bridge = getattr(self.host, 'queue_bridge_v1', None) or self.native
-            raw = bridge.snapshot()
+            raw = self.native.snapshot()
             if not isinstance(raw, dict) or type(raw.get('protocol')) is not int or raw['protocol'] != 1 or raw.get('origin') != ('orca-owned-cloud' if self.mode == 'owned_cloud' else 'orca-native-queue'):
                 raise ValueError('桥接协议不匹配。')
             if raw.get('cloud_session_reused') is not (self.mode == 'native'):
                 raise ValueError('队列连接的会话归属不匹配。')
             if self.mode == 'owned_cloud' and raw.get('attached') is not True:
                 raise RuntimeError('插件独立云连接尚未初始化。')
+            if self._host_provider and raw.get('attached') is not True:
+                raise RuntimeError('Orca 队列接口尚未接入当前连接。')
             rows = raw.get('devices')
             if not isinstance(rows, list) or len(rows) > 100:
                 raise ValueError('设备列表格式错误。')
@@ -135,6 +166,8 @@ class PrinterConnection:
                 devices.append(device)
             records=raw.get('commands',[])
             commands=[{k:v for k,v in r.items() if k in ('request_id','device_id','action','tag','status','stage','progress','code') and type(v) in (str,int,float)} for r in records if isinstance(r,dict)] if isinstance(records,list) and len(records)<=4096 else []
+            if raw.get('can_submit') is True and raw.get('prototype') is not True:
+                self._sync_host_watch(devices)
             return dict(available=True, can_submit=raw.get('can_submit') is True and raw.get('prototype') is not True, devices=devices, commands=commands,
                         connection_mode=self.mode,
                         material_mapping_ready=raw.get('material_mapping_ready') is True,
