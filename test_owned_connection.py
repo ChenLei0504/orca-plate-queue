@@ -1,5 +1,6 @@
 """Private transport/provider/login tests. All endpoints and devices are fixtures."""
 import io
+from email.message import Message
 import json
 import os
 from pathlib import Path
@@ -25,6 +26,12 @@ class Opener:
         self.calls.append(request)
         if isinstance(self.body, Exception):
             raise self.body
+        if request.get_method() == 'GET':
+            response=Reply(b'')
+            response.status=204
+            response.headers=Message()
+            response.headers.add_header('Set-Cookie','bbl_csrf_token=fixture-csrf; Path=/; Secure; HttpOnly')
+            return response
         return Reply(json.dumps(self.body).encode())
 
 
@@ -35,8 +42,40 @@ class LoginTests(unittest.TestCase):
                                          ('CN', '13800000000', 'https://bambulab.cn/')]:
             opener = Opener({'code': 0})
             CloudLogin(opener).send_code(region, account)
-            self.assertTrue(opener.calls[0].full_url.startswith(expected))
-            self.assertEqual(json.loads(opener.calls[0].data)['type'], 'codeLogin')
+            self.assertTrue(opener.calls[-1].full_url.startswith(expected))
+            self.assertEqual(json.loads(opener.calls[-1].data)['type'], 'codeLogin')
+
+    def test_sms_gets_own_csrf_before_post_and_never_sends_it_to_api_login(self):
+        opener=Opener({'accessToken':'fixture-token','code':0})
+        client=CloudLogin(opener)
+        client.send_code('CN','13800000000')
+        self.assertEqual(len(opener.calls),2)
+        self.assertEqual(opener.calls[0].full_url,'https://bambulab.cn/api/csrf')
+        self.assertIsNone(opener.calls[0].data)
+        self.assertEqual(opener.calls[1].get_header('Cookie'),'bbl_csrf_token=fixture-csrf')
+        self.assertEqual(opener.calls[1].get_header('X-bbl-csrf-token'),'fixture-csrf')
+        client.login('CN','13800000000','123456')
+        self.assertIsNone(opener.calls[-1].get_header('Cookie'))
+        self.assertIsNone(opener.calls[-1].get_header('X-bbl-csrf-token'))
+
+    def test_missing_csrf_cookie_stops_before_requesting_sms(self):
+        opener=Opener({})
+        response=Reply(b'');response.status=204;response.headers=Message()
+        with patch.object(opener,'open',return_value=response) as request:
+            with self.assertRaises(CloudLoginError):CloudLogin(opener).send_code('CN','13800000000')
+            self.assertEqual(request.call_count,1)
+
+    def test_403_reason_is_classified_without_leaking_response_or_retry(self):
+        for body,expected in [(b'{"error":"missing_cookie", "private":"SECRET"}','网页校验'),
+                              (b'<html>cloudflare SECRET</html>','安全验证'),
+                              (b'{"private":"SECRET"}','无法仅凭')]:
+            error=urllib.error.HTTPError('https://bambulab.cn',403,'SECRET',{},Reply(body))
+            opener=Opener(error)
+            with self.assertRaises(CloudLoginError) as caught:
+                CloudLogin(opener).send_code('CN','x@example.com')
+            self.assertIn(expected,str(caught.exception))
+            self.assertNotIn('SECRET',str(caught.exception))
+            self.assertEqual(len(opener.calls),1)
 
     def test_bad_input_never_contacts_cloud(self):
         opener = Opener({})

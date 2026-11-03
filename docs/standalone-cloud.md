@@ -1,6 +1,6 @@
 # 独立云连接版 / Standalone cloud preview
 
-当前产物：**0.8.0a1 · 20261103.3**，本地可安装测试包，尚未发布到市场。
+当前产物：**0.8.0a1 · 20261103.4**，本地可安装测试包，尚未发布到市场。
 旧的 0.7.8 分离安装版构建入口保持不变。
 
 ## 用户使用方式
@@ -84,7 +84,7 @@ python -m unittest test_standalone_release -v
 
 ## English
 
-**0.8.0a1 / 20261103.3** is a locally built installable preview, not a validated public release.
+**0.8.0a1 / 20261103.4** is a locally built installable preview, not a validated public release.
 One wheel includes the UI, scheduler, a private child process, pinned Open Bamboo networking code and compatible Microsoft runtimes. Users do not need a separate server, installer or Open Bamboo plugin.
 
 Install through Orca’s plugin manager after pausing/reconciling and disabling the old queue. Sign in with an email/SMS code in the plugin. Keep the printer in cloud mode. Existing networking files are untouched; old `v3` queues are separate from `v4-cloud`.
@@ -104,3 +104,11 @@ The wheel now declares explicit CPython 3.12 / 3.13 Windows x64 tags accepted by
 Orca 已保存的权限无需手工清除。短路径登录目录现在使用普通路径访问，避免被误判为插件目录外写入；私有组件的启动命令保持固定，父进程编号通过私有环境变量传入，退出保护不变。权限声明与实际启动命令一致。首次安装或授权范围变化仍由 Orca 提示用户确认。
 
 Short session paths now retain the host-allowed spelling. The exact private-component command line stays stable across restarts; the parent process ID travels via a private environment variable, consumed before networking loads. Initial or changed permissions still require user consent. No permission database is edited by the plugin.
+
+### 20261103.4 短信校验与授权恢复 / SMS validation and permission recovery
+
+中国区短信验证码请求先从 `https://bambulab.cn/api/csrf` 获取独立的临时校验 Cookie，再向同一网站的短信端点提交对应 Cookie 和请求头。不读取浏览器或 Orca 登录信息，不绕过网页安全挑战，错误响应仅用于分类，不记录账号、验证码、Cookie 或响应正文。无账号空请求实测从缺少 Cookie 的 HTTP 403 变为参数缺失的 HTTP 400；真实短信发送及登录仍待用户验证。
+
+首次授权后后台操作可能已被 Orca 中止：同意后点“连接说明 → 重新连接”，无需反复重启或重装。读、写管道是两项不同授权，弹窗都可能显示 `open`；权限随插件保存，重新安装会由 Orca 重新审核。授权恢复现在显示明确操作提示；未登录的重新连接成功后显示“请登录 Bambu Cloud”。
+
+CN SMS requests now acquire a fresh anonymous CSRF cookie from the website and submit its matching header only to that website. Cookies remain in memory and are never sent to API login. Anonymous empty-request verification changed from missing-cookie HTTP 403 to expected invalid-parameter HTTP 400; real SMS delivery and login remain unverified. After accepting an interrupted background operation, use Reconnect; no restart is needed. Read/write pipe grants are separate and reinstallation triggers Orca's permission review again.

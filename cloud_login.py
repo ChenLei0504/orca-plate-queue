@@ -1,5 +1,6 @@
 """Explicit verification-code login. No password, credential discovery or redirects."""
 import json
+from http.cookies import SimpleCookie
 import re
 import urllib.error
 import urllib.request
@@ -31,10 +32,60 @@ class CloudLogin:
             raise CloudLoginError('请输入有效的邮箱或中国大陆手机号。')
         return account, phone
 
-    def _post(self, url, payload):
+    @staticmethod
+    def _http_error(exc):
+        code = exc.code
+        try:
+            # Read only for classification. Never display/log a response body,
+            # cookies, account, OTP or server-supplied text.
+            try:
+                body = exc.read(65536).decode('utf-8', 'replace').lower()
+            except Exception:
+                body = ''
+            challenge = (exc.headers or {}).get('cf-mitigated') == 'challenge'
+        finally:
+            exc.close()
+        if code == 429:
+            return CloudLoginError('请求过于频繁，请稍后再试。')
+        if code == 403 and 'missing_cookie' in body:
+            return CloudLoginError('验证码请求缺少网页校验信息（HTTP 403），请更新插件后重试。')
+        if code == 403 and (challenge or 'cloudflare' in body or 'captcha' in body):
+            return CloudLoginError('云端要求网页安全验证（HTTP 403），当前验证码接口无法完成，请勿反复重试。')
+        if code == 403:
+            return CloudLoginError('云端拒绝了认证请求（HTTP 403）；无法仅凭此状态判断账号或地区是否有误。')
+        if code in (400, 401):
+            return CloudLoginError('账号或验证码未通过校验，请核对输入。')
+        return CloudLoginError('登录服务暂时不可用，请稍后重试。')
+
+    def _sms_headers(self):
+        # The CN website endpoint requires the same CSRF cookie/header pair as
+        # its browser form. Obtain our own short-lived anonymous cookie; do not
+        # discover or reuse browser/Orca sessions or bypass interactive challenges.
+        request = urllib.request.Request('https://bambulab.cn/api/csrf',
+            headers={'Accept': 'application/json', 'User-Agent': 'OrcaPlateQueue/0.8.0'})
+        try:
+            with self._opener.open(request, timeout=20) as response:
+                if response.status != 204:
+                    raise CloudLoginError('无法获取短信网页校验信息，请稍后重试。')
+                cookie = SimpleCookie()
+                for value in response.headers.get_all('Set-Cookie', []):
+                    cookie.load(value)
+                item = cookie.get('bbl_csrf_token')
+                token = item.value if item else ''
+                if not token or len(token) > 4096 or not re.fullmatch(r'[A-Za-z0-9_.%~+=/-]+', token):
+                    raise CloudLoginError('无法获取短信网页校验信息，请稍后重试。')
+                return {'Cookie': 'bbl_csrf_token=' + token, 'x-bbl-csrf-token': token}
+        except urllib.error.HTTPError as exc:
+            raise self._http_error(exc) from None
+        except CloudLoginError:
+            raise
+        except Exception:
+            raise CloudLoginError('无法获取短信网页校验信息，请稍后重试。') from None
+
+    def _post(self, url, payload, headers=None):
         request = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'),
             headers={'Content-Type': 'application/json', 'Accept': 'application/json',
-                     'User-Agent': 'OrcaPlateQueue/0.8.0'}, method='POST')
+                     'User-Agent': 'OrcaPlateQueue/0.8.0', **(headers or {})}, method='POST')
         try:
             with self._opener.open(request, timeout=20) as response:
                 raw = response.read(65537)
@@ -45,15 +96,7 @@ class CloudLogin:
                     raise ValueError()
                 return data
         except urllib.error.HTTPError as exc:
-            code = exc.code
-            exc.close()
-            if code == 429:
-                raise CloudLoginError('请求过于频繁，请稍后再试。') from None
-            if code == 403:
-                raise CloudLoginError('云端拒绝了登录请求，请检查账号地区或稍后重试。') from None
-            if code in (400, 401):
-                raise CloudLoginError('账号或验证码无效，请重新获取验证码。') from None
-            raise CloudLoginError('登录服务暂时不可用，请稍后重试。') from None
+            raise self._http_error(exc) from None
         except CloudLoginError:
             raise
         except Exception:
@@ -68,7 +111,7 @@ class CloudLogin:
         else:
             url = root + '/v1/user-service/user/sendemail/code'
             body = {'email': account, 'type': 'codeLogin'}
-        result = self._post(url, body)
+        result = self._post(url, body, self._sms_headers() if phone else None)
         if result.get('code') not in (None, 0, '0'):
             raise CloudLoginError('验证码发送失败，请核对账号和地区。')
 
