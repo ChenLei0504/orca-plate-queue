@@ -11,7 +11,7 @@ from build_public_release import runtime_entries, archive_bytes, SOURCES
 
 ROOT = Path(__file__).resolve().parent
 VERSION = '0.8.0a1'
-BUILD = '20261103.1'
+BUILD = '20261103.2'
 OUT = ROOT / 'standalone-dist' / VERSION
 NATIVE = ROOT / 'native/owned-host-build'
 EXTRA = ['cloud_login.py','owned_connection.py','build_standalone_release.py','test_owned_connection.py',
@@ -96,7 +96,13 @@ Windows x64 only (Windows 10 1903+). Old v3 queues stay separate from v4-cloud. 
         'Author: Orca Plate Queue contributors\nRequires-Python: >=3.12\n'
         'Import-Name: orca_plate_queue\nLicense-Expression: AGPL-3.0-or-later\n'
         'License-File: LICENSE\nLicense-File: NOTICE\n\n'+notice).encode()
-    entries[dist+'WHEEL']=b'Wheel-Version: 1.0\nGenerator: OrcaPlateQueueStandalone\nRoot-Is-Purelib: false\nTag: py3-none-win_amd64\n'
+    # Orca 2.5.0-rc requires an explicit CPython prefix for platform wheels.
+    # The host EXE has no Python ABI dependency; these are the tested interpreters.
+    # Do not advertise -any: the bundled executable and DLLs are Windows x64.
+    entries[dist+'WHEEL']=(
+        'Wheel-Version: 1.0\nGenerator: OrcaPlateQueueStandalone\n'
+        'Root-Is-Purelib: false\nTag: cp312-none-win_amd64\nTag: cp313-none-win_amd64\n'
+    ).encode()
     entries[dist+'top_level.txt']=b'orca_plate_queue\n'
     entries[dist+'LICENSE']=license_text;entries[dist+'NOTICE']=notice.encode()
     record=io.StringIO(newline='');writer=csv.writer(record,lineterminator='\n')

@@ -25,7 +25,7 @@ class StandaloneReleaseTests(unittest.TestCase):
     def test_record_platform_native_hashes_and_honest_permissions(self):
         with zipfile.ZipFile(WHEEL) as archive:
             dist='orca_plate_queue-0.8.0a1.dist-info/'
-            self.assertIn('Tag: py3-none-win_amd64',archive.read(dist+'WHEEL').decode())
+            self.assertIn('Root-Is-Purelib: false',archive.read(dist+'WHEEL').decode())
             self.assertIn('OWNED_CLOUD = True',archive.read('orca_plate_queue/core.py').decode())
             for name,digest,size in csv.reader(io.StringIO(archive.read(dist+'RECORD').decode())):
                 if not digest:continue
@@ -43,6 +43,28 @@ class StandaloneReleaseTests(unittest.TestCase):
             self.assertFalse(permissions['other_plugin_file_modification'])
             self.assertFalse(permissions['host_account_discovery'])
             self.assertIn('pending',permissions['real_device_validation'])
+
+    def test_wheel_tags_match_orca_installer_contract(self):
+        # Orca 2.5.0-rc af2ffb8c, PluginFsUtils.cpp:1097-1147. Its
+        # installer does not accept py3-none with a platform-specific suffix.
+        # Keep this external host contract separate from the package builder.
+        def accepted(tags, abi, os_markers):
+            return any('-none-any' in tag or (
+                tag.startswith(abi) and any(marker in tag for marker in os_markers)
+            ) for tag in tags)
+
+        with zipfile.ZipFile(WHEEL) as archive:
+            metadata=archive.read('orca_plate_queue-0.8.0a1.dist-info/WHEEL').decode()
+        tags=[line[4:].strip() for line in metadata.splitlines() if line.startswith('Tag:')]
+        self.assertTrue(tags, 'A native Windows package must declare compatibility')
+        self.assertTrue(all(tag.endswith('-none-win_amd64') for tag in tags))
+        for abi in ('cp312', 'cp313'):
+            with self.subTest(abi=abi):
+                self.assertTrue(accepted(tags, abi, ('-win',)))
+                self.assertFalse(accepted(tags, abi, ('-macosx',)))
+                self.assertFalse(accepted(tags, abi, ('-linux', '-manylinux')))
+        self.assertFalse(accepted(tags, 'cp311', ('-win',)))
+        self.assertFalse(accepted(['py3-none-win_amd64'], 'cp312', ('-win',)))
 
     def test_packaged_plugin_lifecycle_and_active_queue_auth_guard(self):
         with tempfile.TemporaryDirectory() as temp:

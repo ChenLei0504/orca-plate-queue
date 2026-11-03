@@ -1,6 +1,6 @@
 # 独立云连接版 / Standalone cloud preview
 
-当前产物：**0.8.0a1 · 20261103.1**，本地可安装测试包，尚未发布到市场。
+当前产物：**0.8.0a1 · 20261103.2**，本地可安装测试包，尚未发布到市场。
 旧的 0.7.8 分离安装版构建入口保持不变。
 
 ## 用户使用方式
@@ -84,7 +84,7 @@ python -m unittest test_standalone_release -v
 
 ## English
 
-**0.8.0a1 / 20261103.1** is a locally built installable preview, not a validated public release.
+**0.8.0a1 / 20261103.2** is a locally built installable preview, not a validated public release.
 One wheel includes the UI, scheduler, a private child process, pinned Open Bamboo networking code and compatible Microsoft runtimes. Users do not need a separate server, installer or Open Bamboo plugin.
 
 Install through Orca’s plugin manager after pausing/reconciling and disabling the old queue. Sign in with an email/SMS code in the plugin. Keep the printer in cloud mode. Existing networking files are untouched; old `v3` queues are separate from `v4-cloud`.
@@ -92,3 +92,9 @@ Install through Orca’s plugin manager after pausing/reconciling and disabling 
 Windows x64 only, Windows 10 1903+. Session files have a private current-user/SYSTEM ACL and are **not encrypted**. No credentials are discovered from other plugins. Process communication uses private pipes, not a local HTTP service. Lost command responses are not replayed automatically.
 
 Python 3.12 and 3.13 each passed 332 offline tests; 97 UI flows passed. A blank-session smoke test of the real core passed. Real cloud login, simultaneous Handy use, AMS printing and automatic plate swaps still require supervised acceptance testing. macOS/Linux builds are not included.
+
+### 20261103.2 安装修复 / Installation fix
+
+修复 Orca 2.5.0-rc 拒绝平台通用 Python 标签的问题；安装包明确声明已测试的 CPython 3.12 / 3.13 和 Windows x64。此前失败发生在安装前检查，未进入登录或设备连接。
+
+The wheel now declares explicit CPython 3.12 / 3.13 Windows x64 tags accepted by Orca’s installer. The previous package failed pre-install inspection, before account or printer access.
