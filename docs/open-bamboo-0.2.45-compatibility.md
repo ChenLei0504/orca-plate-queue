@@ -1,6 +1,6 @@
 # Open Bamboo 0.2.45 compatibility record
 
-Queue: 0.7.8, build 20261103.8. Connection adapter: 0.7.5, Windows x64.
+Queue: 0.7.9, build 20261103.9. Connection adapter: 0.7.5, Windows x64.
 This is a local compatibility candidate, not a published or real-printer-qualified release.
 
 ## Evidence

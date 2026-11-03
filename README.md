@@ -14,7 +14,7 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 | Component / 组件 | Current source version / 当前源码版本 |
 | --- | --- |
-| Queue plugin / 队列插件 | **0.7.8** · build **20261103.8** |
+| Queue plugin / 队列插件 | **0.7.9** · build **20261103.9** |
 | Connection adapter / 连接适配器 | **0.7.5** · Open Bamboo **0.2.45** compatibility preview |
 | Platform / 平台 | Windows x64 · OrcaSlicer **2.5.0 beta** |
 
@@ -30,11 +30,11 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 ## 当前开发方向 / Current development direction
 
-回到 **0.7.8 队列 + Open Bamboo 连接适配器**。独立云连接 0.8.0a1 和拟议宿主接口暂停作为安装方案；它们尚未完成真实连接验收。
+**0.7.9 基于 0.7.8 队列方案，配合 Open Bamboo 连接适配器。**独立云连接 0.8.0a1 和拟议宿主接口暂停作为安装方案；它们尚未完成真实连接验收。
 
 本地兼容包目标为 Open Bamboo **0.2.45**。ABI / AMS 参数结构、四个桥接入口及实际 DLL 副本的安装恢复已完成离线验证；**实机打印、Handy 同时在线和换盘验收仍待完成**。本地构建不等于已发布，请以 Releases 实际附件为准。
 
-Development returns to **queue 0.7.8 + an Open Bamboo adapter**. The standalone-cloud preview and proposed host API are not installation recommendations. Open Bamboo **0.2.45** has passed offline ABI, forwarding and installation/restore checks; real printing, concurrent Handy access and plate changes still require acceptance. A local build is not a published release.
+**Queue 0.7.9 builds on the 0.7.8 bridge approach with an Open Bamboo adapter.** The standalone-cloud preview and proposed host API are not installation recommendations. Open Bamboo **0.2.45** has passed offline ABI, forwarding and installation/restore checks; real printing, concurrent Handy access and plate changes still require acceptance. A local build is not a published release.
 
 ## 中文说明
 
@@ -89,7 +89,7 @@ Orca Plate Queue 将多个**单盘切片 3MF**排成队列，每台打印机独�
 | `source-<版本>.zip` | 对应版本的完整工程源码及构建、测试脚本。 |
 | `SHA256SUMS.txt` | 发布附件的 SHA256 校验值。 |
 
-连接适配器 0.7.5 当前为本地验证包。发布后会附在 [0.7.8 发布页](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.8)，下载前请确认附件确实存在。队列与适配器版本独立。
+连接适配器 0.7.5 当前为本地验证包。发布后会附在 [0.7.9 发布页](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.9)，下载前请确认附件确实存在。队列与适配器版本独立。
 
 另有正在验证的[兼容适配器方案](兼容适配器说明.txt)：按 ABI 和导出函数检查，原样保留用户安装的 Open Bamboo 核心；更新后可重新适配。本地验证包尚未替换云端默认下载，不表示已完成实机验收。
 
@@ -181,7 +181,7 @@ flowchart LR
 
 ### 更新与常见问题
 
-更新到 0.7.8 后，应看到版本 **0.7.8**、构建 **20261103.8**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
+更新到 0.7.9 后，应看到版本 **0.7.9**、构建 **20261103.9**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
 
 | 现象 | 检查方式 |
 | --- | --- |
@@ -191,8 +191,8 @@ flowchart LR
 | 选择 AMS 却提示手动进料 | 核对本盘供料方式、实际槽位和“完整 AMS 映射已启用”状态；出现异常先暂停检查，不把提示视为正常。 |
 | 文件准备好了但不能开始 | 打开开始前检查，查看设备状态、HMS / 打印错误、喷嘴、耗材映射与换板配置。 |
 | 打印完成却等待核对 | 核对 Handy / 屏幕中的实际任务和状态，再按恢复区域提示处理；不要重复发送原任务。 |
-| 允许文件权限后仍提示队列初始化失败 | 更新到 0.7.8。若仍出现权限提示，允许后点击页面“重新初始化”；无需删除队列数据。 |
-| 添加换盘文件时 `.part` 报 Errno 2，存储路径很长 | 更新到 0.7.8 / 20261103.8。此构建修复未启用长路径感知的宿主中的缓存创建、校验和数据库访问。 |
+| 允许文件权限后仍提示队列初始化失败 | 更新到 0.7.9。若仍出现权限提示，允许后点击页面“重新初始化”；无需删除队列数据。 |
+| 添加换盘文件时 `.part` 报 Errno 2，存储路径很长 | 更新到 0.7.9 / 20261103.9。此构建修复未启用长路径感知的宿主中的缓存创建、校验和数据库访问。 |
 | 路径编码错误 `-7` | 上游 SDK 无法用系统代码页表示当前缓存路径；检查数据目录字符和系统区域环境。 |
 | 更新后看不到原队列 | 本地插件与云订阅可能使用不同私有目录；本版不自动合并，避免同时激活两套队列。 |
 
@@ -284,7 +284,7 @@ The computer and Orca must remain running. This is not a cloud-hosted scheduler 
 
 ### Download and installation
 
-Use the **[Releases page](https://github.com/ChenLei0504/orca-plate-queue/releases)**. Source version 0.7.8 does not imply that a corresponding public Release has already been published.
+Use the **[Releases page](https://github.com/ChenLei0504/orca-plate-queue/releases)**. Source version 0.7.9 does not imply that a corresponding public Release has already been published.
 
 | Artifact | Purpose |
 | --- | --- |
@@ -293,7 +293,7 @@ Use the **[Releases page](https://github.com/ChenLei0504/orca-plate-queue/releas
 | `source-<version>.zip` | Corresponding complete project source, build scripts and tests. |
 | `SHA256SUMS.txt` | Artifact SHA256 checksums. |
 
-Connection adapter **0.7.5** is currently a local compatibility candidate. Once published it will be attached to the [0.7.8 release](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.8); confirm the asset exists before downloading. Queue and adapter version numbers are independent.
+Connection adapter **0.7.5** is currently a local compatibility candidate. Once published it will be attached to the [0.7.9 release](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.9); confirm the asset exists before downloading. Queue and adapter version numbers are independent.
 
 An [adapter-only compatibility preview](兼容适配器说明.txt) preserves the installed Open Bamboo core and validates its ABI/export contract. It supports readaptation after updates. The local preview has not replaced the default cloud download and has not completed real-printer acceptance.
 
@@ -355,7 +355,7 @@ Other printers keep their independent queues. Restart, disconnection, unknown ta
 
 ### Updates and troubleshooting
 
-After installing 0.7.8, fully exit and restart Orca. The page should show **0.7.8 / 20261103.8**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
+After installing 0.7.9, fully exit and restart Orca. The page should show **0.7.9 / 20261103.9**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
 
 | Symptom | What to check |
 | --- | --- |
@@ -365,8 +365,8 @@ After installing 0.7.8, fully exit and restart Orca. The page should show **0.7.
 | Manual feeding requested despite AMS selection | Recheck the job's source, slot and complete AMS-mapping capability; pause and investigate unexpected behavior. |
 | Preflight blocks the start | Check state freshness, HMS / print errors, nozzle, mappings and plate-handling settings. |
 | A finished print waits for verification | Check the actual task in Handy/on the printer, then use recovery controls. Do not resend the original task. |
-| Initialization fails after allowing file access | Update to 0.7.8. If Orca requests access, allow it and click Retry initialization. Queue data does not need to be deleted. |
-| Errno 2 for a long `.part` path while adding a swap file | Update to 0.7.8 / 20261103.8. It fixes cache creation, validation and database access in hosts without long-path awareness. |
+| Initialization fails after allowing file access | Update to 0.7.9. If Orca requests access, allow it and click Retry initialization. Queue data does not need to be deleted. |
+| Errno 2 for a long `.part` path while adding a swap file | Update to 0.7.9 / 20261103.9. It fixes cache creation, validation and database access in hosts without long-path awareness. |
 | Path-encoding error `-7` | The upstream SDK cannot represent the cache path in the system code page; check directory characters and locale settings. |
 | A queue appears missing after changing installation type | Local and cloud-installed plugins may have separate private storage. They are not merged automatically; avoid activating both copies. |
 

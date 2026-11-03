@@ -1,13 +1,13 @@
-Orca Plate Queue 0.7.8 · build 20261103.8
+Orca Plate Queue 0.7.9 · build 20261103.9
 Open Bamboo 0.2.45 兼容测试包 / Compatibility preview
 
-本轮回到 0.7.8 的队列桥接方案。连接适配器 0.7.5 保留用户已安装的兼容 Open Bamboo 核心，继续复用 Orca 首页的 Bambu Cloud 登录；不需要独立云登录。
+0.7.9 基于 0.7.8 的队列桥接方案，新增 Open Bamboo 0.2.45 兼容适配包。连接适配器 0.7.5 保留用户已安装的兼容 Open Bamboo 核心，继续复用 Orca 首页的 Bambu Cloud 登录；不需要独立云登录。
 
 安装：
 1. 在 Open Bamboo 页面安装 / 更新联网库。插件列表版本更新不等于核心已更新。
 2. 保存工程并完整退出 Orca。
 3. 完整解压 Orca-Queue-Connection-0.7.5-Windows-x64.zip，打开 OrcaQueueConnectionSetup.exe，检查后安装 / 重新适配。
-4. 启动 Orca，安装或启用本包 0.7.8 队列 wheel。页面构建应为 20261103.8。
+4. 启动 Orca，安装或启用本包 0.7.9 队列 wheel。页面构建应为 20261103.9。
 5. 继续使用 Orca 首页 Bambu Cloud 登录，核对打印机温度及 AMS 后再由用户开始测试打印。
 
 Open Bamboo 将来更新可能覆盖桥接入口；届时退出 Orca 后重新适配。适配器不常驻，不自动更换联网库，不改动账号和队列。
@@ -20,7 +20,7 @@ Open Bamboo 将来更新可能覆盖桥接入口；届时退出 Orca 后重新�
 A1 自动换盘需要自行配备兼容机构和换盘文件；P1S 手动清板后确认继续。电脑与 Orca 必须保持运行。
 
 English
-Use queue 0.7.8 with connection adapter 0.7.5 and the installed Open Bamboo 0.2.45 core. Update the library in Open Bamboo, exit Orca, extract the adapter ZIP, Check, Install / Readapt, restart and activate the queue wheel. Continue using Orca's Bambu Cloud login.
+Use queue 0.7.9 with connection adapter 0.7.5 and the installed Open Bamboo 0.2.45 core. Update the library in Open Bamboo, exit Orca, extract the adapter ZIP, Check, Install / Readapt, restart and activate the queue wheel. Continue using Orca's Bambu Cloud login.
 The adapter preserves the compatible installed core. Future Open Bamboo updates may require readaptation. No private cloud sign-in is required.
 Offline ABI, fake-SDK forwarding and actual-binary copy/restore tests passed. Real printing, AMS feed, plate changes and concurrent Handy access remain pending. This local candidate has not been published.
 AGPL-3.0-or-later; corresponding source, original baseline source and notices are included. Independent community project, no official endorsement.

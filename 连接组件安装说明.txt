@@ -1,13 +1,13 @@
 Orca Queue Connection Adapter 0.7.5 · Windows x64
 
-配合队列 0.7.8，目标 Open Bamboo 0.2.45。
+配合队列 0.7.9，目标 Open Bamboo 0.2.45。
 本包保留用户当前兼容的 Open Bamboo 联网核心，不再安装固定旧版核心。
 
 1. 在 Orca 的 Open Bamboo 页面完成“安装 / 更新联网库”；插件列表版本更新不等于核心已更新。
 2. 保存工程并完整退出 Orca。
 3. 完整解压本 ZIP，运行 OrcaQueueConnectionSetup.exe，选择实际 Orca 数据目录。
 4. 点击“检查”，再点击“安装 / 重新适配”，核对并确认文件更改。
-5. 重启 Orca，启用打印队列 0.7.8，继续使用首页 Bambu Cloud 登录。
+5. 重启 Orca，启用打印队列 0.7.9，继续使用首页 Bambu Cloud 登录。
 6. 先核对设备、AMS 槽位和实时状态，再由用户启动小型单盘测试。
 
 Open Bamboo 更新可能覆盖联网入口，需要再次退出 Orca 后重新适配。无需重装队列，也无需独立云登录。
