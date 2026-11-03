@@ -1,6 +1,21 @@
 /* Application-authored messages only; user file and device names are never translated. */
 window.QueueMessages=Object.freeze({
   "en": {
+    "使用拓竹官方网页登录。当前 Orca 不提供共享登录接口，本队列需要单独授权；打印机保持云模式，保留 Bambu Handy。": "Sign in on the official Bambu website. Orca does not expose session sharing, so authorize this queue separately. Keep the printer in cloud mode to retain Bambu Handy.",
+    "准备网页登录": "Prepare browser sign-in",
+    "取消网页登录": "Cancel browser sign-in",
+    "打开拓竹官方登录页": "Open official Bambu sign-in",
+    "官方网页登录链接": "Official browser sign-in link",
+    "请在官方网页完成登录，然后返回 Orca。此链接有效期为 5 分钟，请勿分享。": "Complete sign-in on the official website, then return to Orca. This link expires in 5 minutes; do not share it.",
+    "账号和验证码只在拓竹官方网页输入。登录会话保存在本插件的私有目录，仅当前 Windows 用户与系统可访问；尚未加密。退出只清除本插件会话。": "Enter your account and verification code only on the official Bambu website. The session is stored in this plugin’s private directory, accessible to the current Windows user and SYSTEM; it is not encrypted. Signing out clears only this plugin’s session.",
+    "请打开拓竹官方登录页，完成后返回 Orca。链接有效期为 5 分钟。": "Open the official Bambu sign-in page, then return to Orca. The link expires in 5 minutes.",
+    "网页登录已超时，请重新准备登录链接。": "Browser sign-in expired. Prepare a new sign-in link.",
+    "已收到网页登录结果，正在建立队列连接…": "Browser sign-in received. Connecting the queue…",
+    "网页登录未完成，请重新准备登录链接。": "Browser sign-in did not complete. Prepare a new sign-in link.",
+    "网页登录票据未被接受，请重新准备登录链接。不会自动重复提交。": "The browser sign-in ticket was not accepted. Prepare a new link; it will not be resubmitted automatically.",
+    "已取消网页登录。": "Browser sign-in cancelled.",
+    "请选择中国大陆或全球区。": "Select Mainland China or Global.",
+
     "当前修改尚未保存，保存时将重新校验。": "Changes are not saved yet. Saving will validate the updated settings.",
     "重新初始化": "Retry initialization",
     "队列尚未初始化。如果刚允许了 Orca 的文件权限，请点击重新初始化。": "The queue has not initialized. If you just allowed file access in Orca, click Retry initialization.",

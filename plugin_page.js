@@ -1,4 +1,4 @@
-/* Local Orca page bridge. Verification codes are temporary; no tokens or HTTP file uploads in this page. */
+/* Local Orca page bridge. Official browser sign-in only; no credentials or HTTP file uploads in this page. */
 const PAGE_BUILD_ID='20261102.5';
 const I18n=window.QueueI18n,tr=(key,params)=>I18n.tr(key,params),message=value=>I18n.message(value);
 I18n.initialize(document);
@@ -29,12 +29,18 @@ function renderComponents(reply){
     $('connectionSubtitle').textContent=tr('连接组件已随插件提供 · 保留 Bambu Handy');
     $('cloudAuthNote').textContent=message(auth.note||'请登录 Bambu Cloud。');
     const logged=auth.logged_in===true,working=auth.busy===true;
-    for(const id of ['cloudRegion','cloudAccount','cloudCode','cloudLogin'])$(id).disabled=working||logged;
-    if(logged||!$('cloudRegion').dataset.initialized){$('cloudRegion').value=auth.region||'CN';$('cloudRegion').dataset.initialized='true'}
-    $('cloudSendCode').disabled=working||logged||auth.cooldown>0;
-    $('cloudSendCode').textContent=auth.cooldown>0?tr('稍后重试')+' ('+auth.cooldown+'s)':tr('获取验证码');
+    const waiting=auth.browser_waiting===true;
+    $('cloudRegion').disabled=working||logged||waiting;
+    $('cloudBrowserBegin').disabled=working||logged||waiting;
+    if(logged||waiting||!$('cloudRegion').dataset.initialized){$('cloudRegion').value=auth.region||'CN';$('cloudRegion').dataset.initialized='true'}
+    $('cloudBrowserCancel').hidden=!waiting;$('cloudBrowserCancel').disabled=working;
     $('cloudLogout').disabled=working||!logged;$('cloudReconnect').disabled=working;
-    if(logged){$('cloudCode').value='';$('cloudAccount').value=''}
+    // Only offer official HTTPS login links, never arbitrary snapshot URLs.
+    let loginUrl='';
+    try{const u=new URL(auth.browser_url);if(waiting&&!logged&&!working&&['https://bambulab.cn','https://bambulab.com'].includes(u.origin)&&u.pathname==='/sign-in'&&!u.username&&!u.password)loginUrl=u.href}catch{}
+    $('cloudBrowserLink').hidden=!loginUrl;
+    $('cloudBrowserUrl').value=loginUrl;
+    if(loginUrl)$('cloudBrowserOpen').href=loginUrl;else $('cloudBrowserOpen').removeAttribute('href');
     return;
   }
   const connected=reply?.connection?.available===true;
@@ -429,16 +435,14 @@ document.addEventListener('click',e=>{if(!e.target.closest('#importOptions'))$('
 $('quickAdd').onclick=()=>guide('jobs');
 $('openConnection').onclick=()=>{renderComponents(latestReply);showDialog($('connectionDialog'))};
 $('closeConnection').onclick=()=>$('connectionDialog').close();
-for(const [id,action] of [['cloudSendCode','cloud_send_code'],['cloudLogin','cloud_login'],['cloudReconnect','cloud_reconnect'],['cloudLogout','cloud_logout']]){
+for(const [id,action] of [['cloudBrowserBegin','cloud_browser_begin'],['cloudBrowserCancel','cloud_browser_cancel'],['cloudReconnect','cloud_reconnect'],['cloudLogout','cloud_logout']]){
   $(id).onclick=async()=>{
-    const data={region:$('cloudRegion').value,account:$('cloudAccount').value.trim(),code:$('cloudCode').value.trim()};
-    if(action==='cloud_login')$('cloudCode').value='';
+    const data=action==='cloud_browser_begin'?{region:$('cloudRegion').value}:{};
     $(id).disabled=true;
-    try{await checkedSend(action,action==='cloud_login'||action==='cloud_send_code'?data:{})}catch(e){feedback(e.message,true)}
-    finally{data.code='';renderComponents(latestReply)}
+    try{await checkedSend(action,data)}catch(e){feedback(e.message,true)}finally{renderComponents(latestReply)}
   };
 }
-$('connectionDialog').addEventListener('close',()=>{$('cloudCode').value='';$('cloudAccount').value=''});
+$('cloudBrowserUrl').onclick=()=>$('cloudBrowserUrl').select();
 $('connectionDownloadUrl').onclick=()=>$('connectionDownloadUrl').select();
 for(const [id,dialog] of [['closeSettings','settingsDialog'],['closeSwap','swapDialog'],['cancelSwap','swapDialog'],['closeStart','startDialog'],['closeObjects','objectsDialog'],['closeAction','actionDialog'],['cancelAction','actionDialog'],['closePreview','previewDialog'],['closeHelp','helpDialog']])$(id).onclick=()=>$(dialog).close();
 $('pendingTab').onclick=()=>{queueFilter='pending';renderJobs(latestReply?.data||{jobs:[]})};$('historyTab').onclick=()=>{queueFilter='history';renderJobs(latestReply?.data||{jobs:[]})};

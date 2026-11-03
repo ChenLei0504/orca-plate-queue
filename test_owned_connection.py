@@ -164,7 +164,7 @@ class FakeProcess:
         self.calls.append(action)
         if action == 'snapshot':
             return json.loads(json.dumps(self.raw))
-        if action == 'authenticate':
+        if action in ('authenticate','ticket'):
             self.raw.update(logged_in=True,can_submit=True)
         if action == 'connect':
             self.raw['cloud_connected']=True
@@ -249,27 +249,10 @@ class ProviderTests(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.opener = Opener({'accessToken': 'SECRET'})
-        self.provider = OwnedCloudConnection(self.folder.name, process_factory=FakeProcess, login_client=CloudLogin(self.opener))
+        self.provider = OwnedCloudConnection(self.folder.name, process_factory=FakeProcess)
         self.addCleanup(self.provider.close)
         self.provider.start()
         eventually(lambda: self.provider._raw is not None)
-
-    def test_login_status_and_local_logout_without_credentials(self):
-        self.provider.auth_action('login',dict(region='CN',account='me@example.com',code='123456'))
-        eventually(lambda: self.provider.status()['logged_in'])
-        self.assertNotIn('SECRET',json.dumps(self.provider.status()))
-        self.assertNotIn('SECRET',json.dumps(self.provider.snapshot()))
-        self.provider.auth_action('logout',{})
-        eventually(lambda: not self.provider.status()['busy'])
-        self.assertFalse(self.provider.status()['logged_in'])
-
-    def test_double_send_and_cooldown(self):
-        self.opener.body={'code':0}
-        self.provider.auth_action('send_code',dict(region='CN',account='me@example.com'))
-        eventually(lambda: not self.provider.status()['busy'])
-        with self.assertRaises(ValueError):
-            self.provider.auth_action('send_code',dict(region='CN',account='me@example.com'))
-        self.assertEqual(len(self.opener.calls),1)
 
     def test_dead_process_drops_cache_and_never_replays(self):
         process = self.provider._process
@@ -310,6 +293,46 @@ class NativePrivatePipeTests(unittest.TestCase):
                 self.assertEqual(process.call('close'),0)
             finally:
                 process.close()
+
+    def test_browser_callback_through_real_private_pipe_to_fixture_catalog(self):
+        import http.client
+        from urllib.parse import urlsplit
+        with tempfile.TemporaryDirectory() as folder:
+            provider=OwnedCloudConnection(folder,executable=FIXTURE)
+            try:
+                provider.start();eventually(lambda:provider._raw is not None)
+                provider.auth_action('browser_begin',{'region':'CN'})
+                eventually(lambda:provider.status()['browser_url'])
+                browser=provider._browser
+                request=http.client.HTTPConnection(browser.authority,timeout=3)
+                try:
+                    request.request('GET',urlsplit(browser.callback_url).path+'?ticket=fixture-ticket')
+                    response=request.getresponse();response.read();self.assertEqual(response.status,200)
+                finally:request.close()
+                provider.refresh()
+                eventually(lambda:provider.status()['connected'])
+                eventually(lambda:len(provider.snapshot().get('devices',[]))==2)
+                self.assertEqual(provider.status()['browser_url'],'')
+                self.assertNotIn('TEST-SECRET',json.dumps(provider.snapshot()))
+            finally:provider.close()
+
+    def test_ticket_exchange_is_single_use_and_never_exports_credentials(self):
+        with tempfile.TemporaryDirectory() as folder:
+            process=PrivateProcess(FIXTURE)
+            try:
+                process.call('open',dict(storage=folder,region='CN'))
+                with self.assertRaises(OwnedConnectionError):process.call('ticket',{'ticket':'invalid-ticket'})
+                with self.assertRaises(OwnedConnectionError):process.call('ticket',{'ticket':'fixture-ticket'})
+                process.close()
+                process=PrivateProcess(FIXTURE)
+                process.call('open',dict(storage=folder,region='CN'))
+                process.call('ticket',{'ticket':'fixture-ticket'})
+                raw=process.call('snapshot')
+                self.assertTrue(raw['logged_in'])
+                self.assertNotIn('TEST-SECRET',json.dumps(raw))
+                self.assertNotIn('fixture-ticket',json.dumps(raw))
+                with self.assertRaises(OwnedConnectionError):process.call('ticket',{'ticket':'fixture-ticket'})
+            finally:process.close()
 
     def test_private_process_ams_external_and_idempotent_receipts(self):
         import hashlib

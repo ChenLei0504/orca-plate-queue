@@ -47,6 +47,11 @@ int main(int argc, char**) {
             int code = -2;
             if (action == "open") code = oq_owned_open_v1(payload.data(), static_cast<unsigned int>(payload.size()));
             else if (action == "authenticate") code = oq_owned_auth_v1(payload.data(), static_cast<unsigned int>(payload.size()));
+            else if (action == "ticket") {
+                auto ticket = parsed->find("payload.ticket").as_string();
+                code = oq_owned_ticket_v1(ticket.data(), static_cast<unsigned int>(ticket.size()));
+                if (!ticket.empty()) SecureZeroMemory(ticket.data(), ticket.size());
+            }
             else if (action == "connect") code = oq_owned_connect_v1();
             else if (action == "refresh") code = oq_owned_refresh_v1();
             else if (action == "command") code = obn_queue_command_v1(payload.data(), static_cast<unsigned int>(payload.size()));

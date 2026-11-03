@@ -27,6 +27,8 @@ class StandaloneReleaseTests(unittest.TestCase):
             dist='orca_plate_queue-0.8.0a1.dist-info/'
             self.assertIn('Root-Is-Purelib: false',archive.read(dist+'WHEEL').decode())
             self.assertIn('OWNED_CLOUD = True',archive.read('orca_plate_queue/core.py').decode())
+            self.assertIn('orca_plate_queue/browser_login.py',archive.namelist())
+            self.assertNotIn('orca_plate_queue/cloud_login.py',archive.namelist())
             for name,digest,size in csv.reader(io.StringIO(archive.read(dist+'RECORD').decode())):
                 if not digest:continue
                 data=archive.read(name)
@@ -92,6 +94,7 @@ class StandaloneReleaseTests(unittest.TestCase):
                 self.assertEqual(len(granted[0]['process']),1)
                 self.assertEqual(granted[0]['process'][0],provider.private_process_command(folder/'orca_plate_queue/native-bin/orca_queue_host.exe'))
                 self.assertIn('https://api.bambulab.cn',granted[0]['network_http'])
+                self.assertIn('http://127.0.0.1',granted[0]['network_http'])
                 page=core.PrintQueuePage();page.on_load()
                 self.assertEqual(page._error,'')
                 eventually(lambda:page._connection.native._raw is not None)
@@ -103,7 +106,7 @@ class StandaloneReleaseTests(unittest.TestCase):
                 self.assertFalse((folder/'storage/v3').exists())
                 # No account operation may proceed while a queue could still send.
                 page._service.data['running']=True
-                page.on_message({'action':'cloud_login','region':'CN','account':'x@example.com','code':'123456'})
+                page.on_message({'action':'cloud_browser_begin','region':'CN'})
                 self.assertFalse(page.reply['success'])
                 self.assertIn('暂停所有队列',page.reply['note'])
                 page._service.data['running']=False

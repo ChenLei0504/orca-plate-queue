@@ -385,28 +385,34 @@ test('feedback stays inside the top modal and returns to the page on close',asyn
  const t=launch();try{t.w.openSwap();t.w.feedback('saved fixture');assert.equal(t.el('feedback').parentElement,t.el('swapDialog'));assert.equal(t.el('feedback').classList.contains('dialog-feedback'),true);t.w.showDialog(t.el('settingsDialog'));t.w.feedback('nested error',true);assert.equal(t.el('feedback').parentElement,t.el('settingsDialog'));t.el('settingsDialog').close();assert.equal(t.el('feedback').parentElement,t.el('swapDialog'));t.el('swapDialog').close();assert.equal(t.el('feedback').parentElement,t.w.document.body);assert.equal(t.el('feedback').classList.contains('dialog-feedback'),false);assert.equal(t.el('feedback').hidden,false)}finally{t.close()}
 });
 
-test('owned cloud login hides legacy installer and clears one-time codes',async()=>{
- const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'请登录 Bambu Cloud。',cooldown:0};
+test('official browser sign-in has no account or code entry',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'请登录 Bambu Cloud。'};
  const t=launch(state);try{
   t.el('openConnection').click();assert.equal(t.el('cloudLoginPanel').hidden,false);assert.equal(t.el('legacyConnectionPanel').hidden,true);
-  t.el('cloudAccount').value='fixture@example.com';t.el('cloudCode').value='123456';t.el('cloudLogin').click();await tick();
-  const req=t.requests.find(r=>r.action==='cloud_login');assert.equal(req.account,'fixture@example.com');assert.equal(req.code,'123456');assert.equal(t.el('cloudCode').value,'');
-  state.cloud_auth={region:'CN',logged_in:true,busy:false,note:'插件独立云连接已连接。',cooldown:0};t.set(state);
-  assert.equal(t.el('cloudAccount').value,'');assert.equal(t.el('cloudLogin').disabled,true);assert.equal(t.el('cloudLogout').disabled,false);
-  await chooseLanguage(t,'en');assert.match(t.el('connectionTitle').textContent,/Independent cloud/);
+  assert.equal(t.el('cloudAccount'),null);assert.equal(t.el('cloudCode'),null);
+  t.el('cloudBrowserBegin').click();await tick();
+  const req=t.requests.find(r=>r.action==='cloud_browser_begin');assert.equal(req.region,'CN');assert.equal(req.account,undefined);assert.equal(req.code,undefined);
+  state.cloud_auth={region:'CN',logged_in:true,busy:false,note:'插件独立云连接已连接。'};t.set(state);
+  assert.equal(t.el('cloudBrowserBegin').disabled,true);assert.equal(t.el('cloudLogout').disabled,false);
+  await chooseLanguage(t,'en');assert.match(t.el('cloudBrowserBegin').textContent,/Prepare browser/);
   t.el('cloudLogout').click();await tick();assert.equal(t.requests.at(-1).account,undefined);
  }finally{t.close()}
 });
-test('verification-code cooldown and busy state prevent repeated UI requests',async()=>{
- const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'验证码已发送，请查收后登录。',cooldown:45};
- const t=launch(state);try{assert.equal(t.el('cloudSendCode').disabled,true);t.el('cloudSendCode').click();assert.equal(t.requests.some(r=>r.action==='cloud_send_code'),false);
- state.cloud_auth.busy=true;t.set(state);assert.equal(t.el('cloudReconnect').disabled,true);assert.equal(t.el('cloudLogin').disabled,true);
+test('pending browser login shows only official URLs and blocks duplicate preparation',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,browser_waiting:true,browser_url:'https://bambulab.cn/sign-in?to=fixture'};
+ const t=launch(state);try{assert.equal(t.el('cloudBrowserBegin').disabled,true);assert.equal(t.el('cloudBrowserLink').hidden,false);assert.equal(t.el('cloudBrowserOpen').hostname,'bambulab.cn');
+ t.el('cloudBrowserBegin').click();assert.equal(t.requests.some(r=>r.action==='cloud_browser_begin'),false);
+ for(const url of ['javascript:alert(1)','https://bambulab.cn.evil.example/sign-in','https://bambulab.cn@evil.example/sign-in']){state.cloud_auth.browser_url=url;t.set(state);assert.equal(t.el('cloudBrowserLink').hidden,true);assert.equal(t.el('cloudBrowserOpen').hasAttribute('href'),false)}
+ state.cloud_auth.busy=true;t.set(state);assert.equal(t.el('cloudReconnect').disabled,true);assert.equal(t.el('cloudBrowserCancel').disabled,true);
+ state.cloud_auth.busy=false;t.set(state);t.el('cloudBrowserCancel').click();await tick();assert.equal(t.requests.at(-1).action,'cloud_browser_cancel');
  }finally{t.close()}
 });
-
-test('cloud region choice survives polling before entering an account',async()=>{
- const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'请登录 Bambu Cloud。',cooldown:0};
- const t=launch(state);try{t.el('cloudRegion').value='US';t.set(state);assert.equal(t.el('cloudRegion').value,'US');t.el('cloudAccount').value='fixture@example.com';t.el('cloudSendCode').click();await tick();assert.equal(t.requests.find(r=>r.action==='cloud_send_code').region,'US')}finally{t.close()}
+test('browser region choice survives polling and expired links are cleared',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'请登录 Bambu Cloud。'};
+ const t=launch(state);try{t.el('cloudRegion').value='US';t.set(state);assert.equal(t.el('cloudRegion').value,'US');t.el('cloudBrowserBegin').click();await tick();assert.equal(t.requests.find(r=>r.action==='cloud_browser_begin').region,'US');
+ state.cloud_auth={region:'US',browser_waiting:false,browser_url:'',note:'网页登录已超时，请重新准备登录链接。'};t.set(state);assert.equal(t.el('cloudBrowserLink').hidden,true);assert.equal(t.el('cloudBrowserUrl').value,'');
+ await chooseLanguage(t,'en');assert.match(t.el('cloudAuthNote').textContent,/expired/);
+ }finally{t.close()}
 });
 
 test('cloud diagnostic categories translate without exposing credentials',async()=>{

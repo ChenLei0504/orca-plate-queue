@@ -1,13 +1,13 @@
 # 独立云连接版 / Standalone cloud preview
 
-当前产物：**0.8.0a1 · 20261103.5**，本地可安装测试包，尚未发布到市场。
+当前产物：**0.8.0a1 · 20261103.6**，本地可安装测试包，尚未发布到市场。
 旧的 0.7.8 分离安装版构建入口保持不变。
 
 ## 用户使用方式
 
 1. 保存工程，暂停旧版的所有队列，核对未结束任务，然后停用旧版队列插件。
 2. 在 Orca 插件管理中安装 `standalone-dist/0.8.0a1/Orca_Plate_Queue_win_x86_64.whl`。
-3. 打开“打印队列 → 连接说明”，选择中国大陆或全球区，使用邮箱／中国大陆手机号接收验证码并登录。
+3. 打开“打印队列 → 连接说明”，选择中国大陆或全球区，点击“准备网页登录”，再打开拓竹官方登录页；只在官方网站输入账号与验证码，完成后返回 Orca。
 4. 先核对 A1 / P1S 设备及 AMS 槽位，再导入单盘切片 3MF 配置耗材和份数。
 
 不用运行旧连接组件安装器，也不要求安装 Open Bamboo、Docker、BamDude 或 Bambuddy。
@@ -24,9 +24,9 @@ macOS / Linux 原生组件尚未构建，不能将这个 wheel 用在这些系�
 ## 已实现
 
 - 同一个 wheel 包含页面、调度器、私有连接进程、联网核心和配套微软运行库。
-- 私有进程通过标准输入／输出管道通信，不开本地监听端口、不安装系统服务。
+- 私有进程通过标准输入／输出管道通信，不安装系统服务。仅网页登录时临时监听本机 127.0.0.1 的随机端口，完成、取消或五分钟超时后关闭。
 - 插件关闭后终止组件；父进程退出时组件自行退出。已开始的打印不会因此被停止。
-- 验证码登录支持地区、发送间隔、超时和脱敏错误。验证码仅临时传递，不写入队列或页面状态。
+- 网页登录支持国区／全球区、取消、超时和单次票据交接。队列页面不再收集账号与验证码，也不再调用短信发送接口。
 - 插件建立自己的账号会话，退出只清理本地会话，不调用远程账号注销。
 - SDK 初次加载前将其配置查找位置限定到本插件目录，不读取 Orca/Open Bamboo 的账号配置。
 - 启动前校验包内组件 SHA256；不自动加载用户安装的更新版联网库。
@@ -42,7 +42,7 @@ macOS / Linux 原生组件尚未构建，不能将这个 wheel 用在这些系�
 
 | 文件 | 职责 |
 | --- | --- |
-| `cloud_login.py` | 有界 HTTPS 验证码请求，不跟随重定向，不记录认证正文 |
+| `browser_login.py` | 官方网页登录链接、短时本机回调、随机路径、单次票据接收 |
 | `owned_connection.py` | 组件文件校验、隐藏子进程、管道超时、异步登录和状态缓存 |
 | `native/owned_host.cpp` | 有界 JSON 管道协议、父进程退出监控 |
 | `native/owned_cloud.cpp` | 独立 agent、目录权限、会话锁、自己的登录／状态接口 |
@@ -63,7 +63,7 @@ python -m unittest test_standalone_release -v
 源码 ZIP 包含本项目源码、构建脚本、测试与固定版本上游源码归档。运行 wheel 中保留许可和真实权限声明。
 新包确实包含原生库、子进程及网络操作；不能沿用旧版“无 DLL、无进程启动”的声明或风险评级。
 
-## 验证记录（2026-11-03）
+## 初始独立版验证记录（20261103.1；不代表后续构建重新全量验收）
 
 - Python 3.12（Orca 自带）与 Python 3.13：各 **332 项**测试通过。
 - 中英文页面工作流：**97 项**通过。
@@ -73,7 +73,7 @@ python -m unittest test_standalone_release -v
 
 这些是离线／未登录测试，不代表以下实机验证已经完成：
 
-1. 国区和全球区收取验证码、登录、过期重登、退出及重启恢复。
+1. 国区和全球区官方网页登录、自动返回本机随机地址、票据兑换、过期重登、退出及重启恢复。
 2. 插件、Orca 和 Handy 同时在线，断线重连不互相影响。
 3. 同一 3MF 原生打印对照 AMS 1–4、外挂、多耗材、跨盘备用槽与校准选项。
 4. 两盘 A1 完成→换盘→下一盘，以及 P1S 人工清板继续。
@@ -84,14 +84,14 @@ python -m unittest test_standalone_release -v
 
 ## English
 
-**0.8.0a1 / 20261103.5** is a locally built installable preview, not a validated public release.
+**0.8.0a1 / 20261103.6** is a locally built installable preview, not a validated public release.
 One wheel includes the UI, scheduler, a private child process, pinned Open Bamboo networking code and compatible Microsoft runtimes. Users do not need a separate server, installer or Open Bamboo plugin.
 
-Install through Orca’s plugin manager after pausing/reconciling and disabling the old queue. Sign in with an email/SMS code in the plugin. Keep the printer in cloud mode. Existing networking files are untouched; old `v3` queues are separate from `v4-cloud`.
+Install through Orca’s plugin manager after pausing/reconciling and disabling the old queue. Prepare browser sign-in in the plugin and enter credentials only on the official Bambu website. Keep the printer in cloud mode. Existing networking files are untouched; old `v3` queues are separate from `v4-cloud`.
 
-Windows x64 only, Windows 10 1903+. Session files have a private current-user/SYSTEM ACL and are **not encrypted**. No credentials are discovered from other plugins. Process communication uses private pipes, not a local HTTP service. Lost command responses are not replayed automatically.
+Windows x64 only, Windows 10 1903+. Session files have a private current-user/SYSTEM ACL and are **not encrypted**. No credentials are discovered from other plugins. Process communication uses private pipes. Browser sign-in temporarily binds only 127.0.0.1 on a random port; the callback closes on completion, cancellation or after 5 minutes. No system service is installed. Lost command responses are not replayed automatically.
 
-Python 3.12 and 3.13 each passed 332 offline tests; 97 UI flows passed. A blank-session smoke test of the real core passed. Real cloud login, simultaneous Handy use, AMS printing and automatic plate swaps still require supervised acceptance testing. macOS/Linux builds are not included.
+For the initial 20261103.1 build, Python 3.12 and 3.13 each passed 332 offline tests; 97 UI flows passed. A blank-session smoke test of the real core passed. Real cloud login, simultaneous Handy use, AMS printing and automatic plate swaps still require supervised acceptance testing. macOS/Linux builds are not included.
 
 ### 20261103.2 安装修复 / Installation fix
 
@@ -118,3 +118,11 @@ CN SMS requests now acquire a fresh anonymous CSRF cookie from the website and s
 验证码请求的网络、权限和响应解析异常不再统一显示为网络不通。提示附带固定的请求阶段与错误类别，例如 `SMS_SEND/TIMEOUT`、`SMS_SEND/HTTP_200/NON_JSON`；不显示原始异常、响应正文、账号或 Cookie。验证码确认可识别 HTTP 204 无正文及 JSON `OK` / `success`，登录仍要求有效会话对象。真实短信失败原因尚待下一次用户请求的诊断确认；匿名可达性测试不代表短信发送或账号登录成功。
 
 Errors now identify the authentication stage and fixed failure category without raw responses or credentials. Code acknowledgements support empty HTTP 204 and explicit JSON success strings; login token validation remains strict. Real SMS delivery and the user-specific failure remain unverified.
+
+### 20261103.6 官方网页登录 / Official browser sign-in
+
+改用拓竹官方网页登录和 Open Bamboo 已有的 `get_my_token` / `change_user` 接口；独立包不再包含原先的验证码 HTTP 客户端。沿用官方网页登录方式不等于继承 Orca 已登录账号。当前宿主公开插件接口只提供登录状态，未提供会话授权交接；不读取 Orca 凭据、不覆盖其他联网插件。
+
+本机接收器需要声明 `http://127.0.0.1` 网络权限，绑定随机端口、使用每次不同的随机路径，五分钟有效，仅接收一次票据。新权限仍由用户在 Orca 中确认。取消、重连、退出和卸载会关闭接收器，不重放认证或打印指令。详见 [登录流程与验收边界](browser-login.md)。
+
+The preview now uses official browser sign-in and the pinned Open Bamboo core’s ticket exchange. It does not inherit Orca’s existing session, read other applications’ credentials or replace networking files. The loopback callback is explicitly declared and short-lived. Real regional website redirects and authenticated device connectivity still require user testing; offline fixtures alone cannot establish cloud compatibility.

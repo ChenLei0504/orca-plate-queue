@@ -103,7 +103,7 @@ QB_EXPORT int oq_owned_ticket_v1(const char* ticket, unsigned int length) {
     std::lock_guard<std::mutex> lock(owned_mu);
     if (!owned_agent) return -1;
     if (!ticket || !length || length > 8192 || std::memchr(ticket, 0, length)) return -2;
-    // Authentication is explicitly invoked by the future login UI. Never expose token JSON.
+    // Authentication is explicitly invoked by the browser callback. Never expose token JSON.
     // Re-authenticate in a fresh agent, so an old account's task cache cannot survive a switch.
     if (owned_ticket_attempted || bambu_network_is_user_login(owned_agent)) return -3;
     owned_ticket_attempted = true;
@@ -122,7 +122,7 @@ QB_EXPORT int oq_owned_ticket_v1(const char* ticket, unsigned int length) {
         }
         rc = bambu_network_change_user(owned_agent, body);
         SecureZeroMemory(body.data(), body.size());
-        return rc == 0 ? 0 : -4;
+        return rc == 0 && bambu_network_is_user_login(owned_agent) ? 0 : -4;
     } catch (...) { return -1; }
 }
 

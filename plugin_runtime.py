@@ -253,7 +253,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
                 self._connection.refresh()
             connection = self._connection.snapshot()
             note = ''
-            if action in ('cloud_send_code', 'cloud_login', 'cloud_logout', 'cloud_reconnect'):
+            if action in ('cloud_browser_begin', 'cloud_browser_cancel', 'cloud_logout', 'cloud_reconnect'):
                 if not OWNED_CLOUD:
                     raise ValueError('当前安装版本未启用独立云连接。')
                 active = any(s.data.get('running') or s.data.get('active') for s in self._fleet.services.values())
@@ -494,7 +494,7 @@ class PrintQueuePlugin(orca.base):
             if OWNED_CLOUD:
                 executable = str(Path(__file__).with_name('native-bin') / 'orca_queue_host.exe')
                 orca.request_permissions(threading=True, process=[private_process_command(executable)],
-                    network_http=['https://api.bambulab.cn', 'https://api.bambulab.com', 'https://bambulab.cn'],
+                    network_http=['http://127.0.0.1', 'https://api.bambulab.cn', 'https://api.bambulab.com', 'https://bambulab.cn'],
                     network_socket=['api.bambulab.cn:443', 'api.bambulab.com:443', 'bambulab.cn:443',
                                     'cn.mqtt.bambulab.com:8883', 'us.mqtt.bambulab.com:8883'])
             else:

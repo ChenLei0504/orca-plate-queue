@@ -41,3 +41,5 @@ html[lang="en"] .stats strong small{margin-left:.25em}
 .toast.dialog-feedback{position:static;max-width:none;margin:0 25px 16px;box-shadow:none;overflow-wrap:anywhere}
 
 .cloud-login-grid{display:grid;gap:14px;margin:20px 0}.cloud-login-grid label{display:grid;gap:6px}.cloud-login-grid input,.cloud-login-grid select{width:100%;box-sizing:border-box}#cloudLoginPanel[hidden],#legacyConnectionPanel[hidden]{display:none}
+
+#cloudLoginPanel .dialog-actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}#cloudBrowserLink{margin:14px 0}#cloudBrowserLink>p{margin:10px 0}

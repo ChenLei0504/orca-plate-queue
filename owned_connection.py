@@ -9,7 +9,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from cloud_login import CloudLogin, CloudLoginError
+from browser_login import BrowserLogin
 from local_paths import fs_path, normal_path
 
 
@@ -144,12 +144,13 @@ class PrivateProcess:
 
 
 class OwnedCloudConnection:
-    def __init__(self, storage, *, executable=None, process_factory=PrivateProcess, login_client=None):
+    def __init__(self, storage, *, executable=None, process_factory=PrivateProcess, browser_factory=BrowserLogin):
         self.watch_ids = set()
         self._storage = Path(storage) / 'cloud-session'
         self._executable = executable or Path(__file__).with_name('native-bin') / 'orca_queue_host.exe'
         self._factory = process_factory
-        self._login = login_client or CloudLogin()
+        self._browser_factory = browser_factory
+        self._browser = None
         self._mu = threading.Lock()
         self._queue = queue.Queue(maxsize=40)
         self._stop = threading.Event()
@@ -160,7 +161,6 @@ class OwnedCloudConnection:
         self._region = 'CN'
         self._busy = False
         self._note = '请登录 Bambu Cloud。'
-        self._cooldown = 0
         self._failed = False
 
     def start(self):
@@ -180,7 +180,9 @@ class OwnedCloudConnection:
             raw = self._raw or {}
             return {'region': self._region, 'busy': self._busy, 'logged_in': raw.get('logged_in') is True,
                     'connected': raw.get('cloud_connected') is True, 'note': self._note,
-                    'cooldown': max(0, int(self._cooldown - time.monotonic()) + 1),
+                    'login_method': 'browser',
+                    'browser_url': self._browser.url if self._browser and not self._browser.expired and not self._busy else '',
+                    'browser_waiting': self._browser is not None,
                     'failed': self._failed}
 
     def snapshot(self):
@@ -242,27 +244,78 @@ class OwnedCloudConnection:
                 pass
 
     def auth_action(self, action, data):
-        if action not in ('send_code', 'login', 'logout', 'reconnect'):
+        if action not in ('browser_begin', 'browser_cancel', 'logout', 'reconnect'):
             raise ValueError('不支持的登录操作。')
-        clean = {k: data.get(k, '') for k in ('region', 'account', 'code')}
-        if action in ('send_code', 'login'):
-            self._login.account(clean['region'], clean['account'])
+        clean = {'region': data.get('region', self._region)}
+        if action == 'browser_begin' and clean['region'] not in ('CN', 'US'):
+            raise ValueError('请选择中国大陆或全球区。')
         with self._mu:
             if self._stop.is_set() or self._busy:
                 raise ValueError('连接操作正在进行，请稍候。')
-            if action in ('send_code', 'login') and (self._raw or {}).get('logged_in'):
+            if action == 'browser_begin' and (self._raw or {}).get('logged_in'):
                 raise ValueError('请先退出当前队列账号。')
-            if action == 'send_code' and time.monotonic() < self._cooldown:
-                raise ValueError('请稍后再发送验证码。')
             self._busy = True
             self._note = '正在处理连接请求…'
-            if action == 'send_code':
-                self._cooldown = time.monotonic() + 60
             try:
                 self._queue.put_nowait((action, clean, None))
             except queue.Full:
                 self._busy = False
                 raise ValueError('连接请求繁忙，请稍后重试。') from None
+
+    def _cancel_browser(self):
+        with self._mu:
+            browser, self._browser = self._browser, None
+        if browser:
+            browser.close()
+
+    def _begin_browser(self, region):
+        self._cancel_browser()
+        # A fresh agent permits one ticket attempt and clears stale device caches.
+        self._open(region)
+        if self._stop.is_set() or self.status()['logged_in']:
+            return
+        browser = self._browser_factory(region)
+        with self._mu:
+            stopped = self._stop.is_set()
+            if not stopped:
+                self._browser = browser
+                self._note = '请打开拓竹官方登录页，完成后返回 Orca。链接有效期为 5 分钟。'
+        if stopped:
+            browser.close()
+
+    def _poll_browser(self):
+        browser = self._browser
+        if not browser or self._stop.is_set():
+            return
+        ticket = browser.poll()
+        if ticket is None:
+            if browser.expired:
+                self._cancel_browser()
+                with self._mu:
+                    self._note = '网页登录已超时，请重新准备登录链接。'
+            return
+        with self._mu:
+            self._busy = True
+            self._note = '已收到网页登录结果，正在建立队列连接…'
+        self._cancel_browser()
+        try:
+            if self._stop.is_set():
+                return
+            try:
+                self._process.call('ticket', {'ticket': ticket})
+            except ComponentRejected:
+                with self._mu:
+                    self._note = '网页登录票据未被接受，请重新准备登录链接。不会自动重复提交。'
+                return
+            fs_path(self._storage / 'region.json').write_text(json.dumps({'region': self._region}), encoding='utf-8')
+            self._process.call('connect')
+            self._poll()
+            if not self.status()['logged_in']:
+                raise ComponentRejected('网页登录未完成，请重新准备登录链接。')
+        finally:
+            ticket = None
+            with self._mu:
+                self._busy = False
 
     def command(self, request):
         if self._stop.is_set() or self._failed:
@@ -300,26 +353,16 @@ class OwnedCloudConnection:
             try:
                 result = 0
                 if action == 'reconnect':
+                    self._cancel_browser()
                     self._open(self._region)
-                elif action in ('send_code', 'login'):
-                    if not self._process or self._failed or data['region'] != self._region:
-                        self._open(data['region'])
-                    if action == 'send_code':
-                        self._login.send_code(data['region'], data['account'])
-                        with self._mu:
-                            self._note = '验证码已发送，请查收后登录。'
-                    else:
-                        auth = self._login.login(data['region'], data['account'], data['code'])
-                        try:
-                            if self._stop.is_set():
-                                break
-                            self._process.call('authenticate', auth)
-                        finally:
-                            auth.clear()
-                        fs_path(self._storage / 'region.json').write_text(json.dumps({'region': self._region}), encoding='utf-8')
-                        self._process.call('connect')
-                        self._poll()
+                elif action == 'browser_begin':
+                    self._begin_browser(data['region'])
+                elif action == 'browser_cancel':
+                    self._cancel_browser()
+                    with self._mu:
+                        self._note = '已取消网页登录。'
                 elif action == 'logout':
+                    self._cancel_browser()
                     self._process.call('logout')
                     self._poll()
                     with self._mu:
@@ -331,10 +374,11 @@ class OwnedCloudConnection:
                     self._poll()
                 else:
                     self._poll()
+                self._poll_browser()
                 if done:
                     done.put((True, result))
             except Exception as exc:
-                if isinstance(exc, (CloudLoginError, ComponentRejected)):
+                if isinstance(exc, ComponentRejected):
                     with self._mu:
                         self._note = str(exc)
                 else:
@@ -343,13 +387,15 @@ class OwnedCloudConnection:
                     done.put((False, str(exc) if isinstance(exc, OwnedConnectionError) else '独立连接操作失败。'))
             finally:
                 data.clear()
-                if action in ('send_code', 'login', 'logout', 'reconnect'):
+                if action in ('browser_begin', 'browser_cancel', 'logout', 'reconnect'):
                     with self._mu:
                         self._busy = False
+        self._cancel_browser()
         if self._process:
             self._process.close()
 
     def _failure(self, exc):
+        self._cancel_browser()
         with self._mu:
             self._raw = None
             self._failed = True
@@ -365,6 +411,7 @@ class OwnedCloudConnection:
 
     def close(self):
         self._stop.set()
+        self._cancel_browser()
         if self._process:
             self._process.close()
         if self._worker:
