@@ -25,7 +25,7 @@ from page_preferences import PagePreferences
 # Enabled only by the explicitly separate standalone test-wheel builder.
 OWNED_CLOUD = False
 if OWNED_CLOUD:
-    from owned_connection import OwnedCloudConnection
+    from owned_connection import OwnedCloudConnection, private_process_command
 
 if os.name != 'nt' or struct.calcsize('P') != 8:
     raise RuntimeError('Orca Plate Queue 仅支持 Windows x64。')
@@ -493,7 +493,7 @@ class PrintQueuePlugin(orca.base):
         if hasattr(orca, 'request_permissions'):
             if OWNED_CLOUD:
                 executable = str(Path(__file__).with_name('native-bin') / 'orca_queue_host.exe')
-                orca.request_permissions(threading=True, process=[executable],
+                orca.request_permissions(threading=True, process=[private_process_command(executable)],
                     network_http=['https://api.bambulab.cn', 'https://api.bambulab.com', 'https://bambulab.cn'],
                     network_socket=['api.bambulab.cn:443', 'api.bambulab.com:443', 'bambulab.cn:443',
                                     'cn.mqtt.bambulab.com:8883', 'us.mqtt.bambulab.com:8883'])

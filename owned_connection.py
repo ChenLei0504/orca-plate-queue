@@ -21,6 +21,11 @@ class ComponentRejected(OwnedConnectionError):
     pass
 
 
+def private_process_command(executable):
+    """Stable Windows command line shared by the permission request and Popen."""
+    return subprocess.list2cmdline([str(fs_path(Path(executable).absolute()))])
+
+
 class PrivateProcess:
     def __init__(self, executable, *, verify=True, timeout=30):
         self.timeout = timeout
@@ -49,7 +54,10 @@ class PrivateProcess:
         # current-directory parameter even when long-path-aware is enabled.
         # Explicit lpApplicationName + a drive-root cwd avoids both limits.
         # The helper resolves all of its own files from its absolute EXE path.
-        self._process = subprocess.Popen([str(fs_path(executable)), str(os.getpid())],
+        # Orca grants the complete command line, not just the executable. Keep
+        # per-launch identity out of argv so its saved grant survives restarts.
+        env['ORCA_QUEUE_PARENT_PID'] = str(os.getpid())
+        self._process = subprocess.Popen(private_process_command(executable),
             executable=str(fs_path(executable)),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             cwd=normal_path(executable).anchor, env=env, shell=False,
@@ -194,10 +202,12 @@ class OwnedCloudConnection:
         with self._mu:
             self._raw = None
             self._region = region
-        folder = fs_path(self._storage / region, force=True)
+        # Python I/O must keep ordinary private paths in Orca's allowed root.
+        # Only the native SDK needs the explicit extended spelling unconditionally.
+        folder = fs_path(self._storage / region)
         folder.mkdir(parents=True, exist_ok=True)
         self._process = self._factory(self._executable)
-        self._process.call('open', {'storage': str(folder), 'region': region})
+        self._process.call('open', {'storage': str(fs_path(folder, force=True)), 'region': region})
         raw = self._process.call('snapshot')
         if raw.get('logged_in'):
             self._process.call('connect')

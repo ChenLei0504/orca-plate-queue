@@ -6,10 +6,10 @@ from pathlib import Path
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import urllib.error
 from cloud_login import CloudLogin, CloudLoginError
-from owned_connection import OwnedCloudConnection, PrivateProcess, OwnedConnectionError
+from owned_connection import OwnedCloudConnection, PrivateProcess, OwnedConnectionError, private_process_command
 from local_paths import fs_path
 
 
@@ -97,6 +97,45 @@ class FakeProcess:
         return 0
     def close(self):
         self.closed=True
+
+
+class StartupPermissionTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'nt', 'Windows host audit contract')
+    def test_process_grant_is_identical_across_parent_restarts(self):
+        executable=Path('C:/Plugin Test/native-bin/orca_queue_host.exe')
+        commands=[]
+        for parent in (11111,22222):
+            child=MagicMock()
+            child.stdout.readline.return_value=b''
+            child.poll.return_value=0
+            with patch('owned_connection.subprocess.Popen',return_value=child) as popen, patch('owned_connection.os.getpid',return_value=parent):
+                process=PrivateProcess(executable,verify=False)
+                process.close()
+            args,kwargs=popen.call_args
+            # Orca stores audit args[1]: on Windows Popen passes a command string.
+            commands.append(args[0])
+            self.assertEqual(args[0],private_process_command(executable))
+            self.assertNotIn(str(parent),args[0])
+            self.assertEqual(kwargs['env']['ORCA_QUEUE_PARENT_PID'],str(parent))
+            self.assertFalse(kwargs['shell'])
+        self.assertEqual(commands[0],commands[1])
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows private path spelling')
+    def test_short_private_session_mkdir_uses_normal_allowed_root_on_restart(self):
+        with tempfile.TemporaryDirectory() as root:
+            mkdir=Path.mkdir
+            def audited_mkdir(path,*args,**kwargs):
+                if str(path).startswith(chr(92)*2+'?'+chr(92)):
+                    raise PermissionError('Orca does not match extended spelling to ordinary allowed root')
+                return mkdir(path,*args,**kwargs)
+            for _ in range(2):
+                provider=OwnedCloudConnection(root,process_factory=FakeProcess)
+                try:
+                    with patch.object(Path,'mkdir',audited_mkdir):
+                        provider.start()
+                        eventually(lambda:provider._raw is not None or provider.status()['failed'])
+                        self.assertIsNotNone(provider._raw,provider.status()['note'])
+                finally:provider.close()
 
 
 class ProviderTests(unittest.TestCase):

@@ -90,6 +90,7 @@ class StandaloneReleaseTests(unittest.TestCase):
                 core.OwnedCloudConnection=lambda storage:real(storage,process_factory=FakeProcess)
                 core.PrintQueuePlugin().register_capabilities()
                 self.assertEqual(len(granted[0]['process']),1)
+                self.assertEqual(granted[0]['process'][0],provider.private_process_command(folder/'orca_plate_queue/native-bin/orca_queue_host.exe'))
                 self.assertIn('https://api.bambulab.cn',granted[0]['network_http'])
                 page=core.PrintQueuePage();page.on_load()
                 self.assertEqual(page._error,'')

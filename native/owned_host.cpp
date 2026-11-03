@@ -7,12 +7,18 @@
 #include <io.h>
 #include <fcntl.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char**) {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
-    if (argc != 2) return 2;
+    if (argc != 1) return 2;
+    // Private inherited environment avoids changing the permission identity on
+    // every Orca restart. Consume it before loading any networking code.
+    const char* parent_env = std::getenv("ORCA_QUEUE_PARENT_PID");
+    const std::string parent_text = parent_env ? parent_env : "";
+    _putenv_s("ORCA_QUEUE_PARENT_PID", "");
+    if (parent_text.empty() || parent_text.find_first_not_of("0123456789") != std::string::npos) return 2;
     char* end = nullptr;
-    auto parent_id = std::strtoul(argv[1], &end, 10);
+    auto parent_id = std::strtoul(parent_text.c_str(), &end, 10);
     if (!parent_id || !end || *end) return 2;
     auto parent = OpenProcess(SYNCHRONIZE, FALSE, parent_id);
     if (!parent) return 3;
