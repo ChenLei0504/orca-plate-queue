@@ -14,7 +14,7 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 | Component / 组件 | Current source version / 当前源码版本 |
 | --- | --- |
-| Queue plugin / 队列插件 | **0.7.9** · build **20261103.9** |
+| Queue plugin / 队列插件 | **0.7.10** · build **20261103.10** |
 | Connection adapter / 连接适配器 | **0.7.5** · Open Bamboo **0.2.45** compatibility preview |
 | Platform / 平台 | Windows x64 · OrcaSlicer **2.5.0 beta** |
 
@@ -27,6 +27,12 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 *截图使用当前真实页面和合成演示数据，不包含真实账号、设备编号或打印记录。界面支持简体中文和英文，默认简体中文。 / Screenshots show the actual current UI with synthetic demo data, not real accounts, printer IDs or print records. The UI supports Simplified Chinese and English, with Simplified Chinese as the default.*
 
 <a id="zh-cn"></a>
+
+## 0.7.10 状态修复 / Status fix
+
+修复已有队列为空时误将打印机显示为空闲。左侧与右侧统一使用新鲜的打印机回报，队列自身提示单独显示；非本队列任务可显示状态和进度，过期或未知状态不会显示为空闲。只需更新队列插件，连接适配器仍为 0.7.5；请等待当前打印结束后再更新。
+
+Printer status now comes from fresh device telemetry even when its queue is empty. Queue notices are separate; external tasks show status and progress, while stale or unknown states are never labelled idle. Keep adapter 0.7.5 and update only the queue after the current print finishes.
 
 ## 当前开发方向 / Current development direction
 
@@ -181,7 +187,7 @@ flowchart LR
 
 ### 更新与常见问题
 
-更新到 0.7.9 后，应看到版本 **0.7.9**、构建 **20261103.9**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
+更新到 0.7.10 后，应看到版本 **0.7.10**、构建 **20261103.10**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
 
 | 现象 | 检查方式 |
 | --- | --- |
@@ -355,7 +361,7 @@ Other printers keep their independent queues. Restart, disconnection, unknown ta
 
 ### Updates and troubleshooting
 
-After installing 0.7.9, fully exit and restart Orca. The page should show **0.7.9 / 20261103.9**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
+After the active print ends, install 0.7.10 and restart Orca. The page should show **0.7.10 / 20261103.10**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
 
 | Symptom | What to check |
 | --- | --- |

@@ -1,5 +1,5 @@
 /* Local Orca page bridge. Official browser sign-in only; no credentials or HTTP file uploads in this page. */
-const PAGE_BUILD_ID='20261103.9';
+const PAGE_BUILD_ID='20261103.10';
 const I18n=window.QueueI18n,tr=(key,params)=>I18n.tr(key,params),message=value=>I18n.message(value);
 I18n.initialize(document);
 let latestReply=null,connection={available:false,devices:[]},setup={},swapSettings={},transitions=[];
@@ -94,28 +94,37 @@ function finishDragging(){draggingId=null;clearDropHints();document.querySelecto
 function scrollToPanel(id){const e=$(id);e.scrollIntoView({behavior:'smooth',block:'center'});return e}
 function focusDevice(){if(latestReply?.connection_mode==='owned_cloud'&&!latestReply?.cloud_auth?.logged_in){renderComponents(latestReply);showDialog($('connectionDialog'));return}scrollToPanel('printerFleet');const first=$('fleetQueues').querySelector('button:not(:disabled)');if(first)first.focus();else feedback(tr('请先在 Orca 首页登录 Bambu Cloud，并确认 A1 或 P1S 在线。'),true)}
 async function selectQueue(device_id){if(busy||switchingQueue||device_id===viewQueueId)return;switchingQueue=true;if(latestReply)renderFleet(latestReply);try{await checkedSend('select_queue',{device_id})}catch(e){feedback(message(e.message),true)}finally{switchingQueue=false;if(latestReply){$('quickAdd').disabled=busy||!boundDevice();renderFleet(latestReply)}}}
+const PRINTING_STATES=new Set(['RUNNING','PAUSE','PREPARE','SLICING']);
+function printerStateFresh(d){const age=d?.state_age_ms??d?.age_ms;return connection.available===true&&d?.online===true&&d.cloud_connected===true&&Number.isFinite(d.age_ms)&&d.age_ms>=0&&d.age_ms<=15000&&Number.isFinite(age)&&age>=0&&age<=15000}
 function machineStatus(q,d){
+  if(!d)return [tr('未选择'),'muted'];
+  if(!d.online)return [tr('离线'),'muted'];
+  if(!printerStateFresh(d))return [tr('等待回报'),'warning'];
+  const states={RUNNING:['打印中',''],PAUSE:['打印已暂停','warning'],PREPARE:['准备打印',''],SLICING:['切片中',''],IDLE:['空闲','muted'],FINISH:['打印完成','muted'],FAILED:['打印失败','warning']};
+  const result=states[d.telemetry?.gcode_state];
+  return result?[tr(result[0]),result[1]]:[tr('状态未知'),'warning'];
+}
+function machineQueueStatus(q){
   if(q?.running&&['syncing','verifying_finish','reconnecting'].includes(q.monitor_stage))return [q.monitor_stage==='reconnecting'?tr('正在恢复连接'):q.monitor_stage==='verifying_finish'?tr('正在确认完成'):tr('正在核对状态'),'warning'];
   if(q?.phase==='recovery')return [tr('需要核对'),'error'];
   if(q?.phase==='confirm_plate')return [tr('等待换板'),'warning'];
-  if(!d.online)return [tr('离线'),'muted'];
-  if(!q&&['RUNNING','PAUSE','PREPARE'].includes(d.telemetry?.gcode_state))return [tr('设备有打印任务'),'warning'];
-  if(q?.active&&d.telemetry?.gcode_state==='PAUSE')return [tr('打印已暂停'),'warning'];
-  if(q?.running)return [q.phase==='sending'?tr('正在发送'):q.phase==='between'?tr('准备换盘'):q.phase==='monitoring'?tr('打印中'):tr('队列运行中'),''];
-  if(q?.active)return [tr('需要核对'),'warning'];
-  return [q?.pending?tr('队列待开始'):tr('空闲'),'muted'];
+  if(q?.running&&q.phase!=='monitoring')return [q.phase==='sending'?tr('正在发送'):q.phase==='between'?tr('准备换盘'):tr('队列运行中'),''];
+  if(q?.active&&!q.running)return [tr('需要核对'),'warning'];
+  return q?.pending?[tr('队列待开始'),'muted']:null;
 }
 function renderFleet(reply){
   const body=$('fleetQueues'),managed=new Map((reply.fleet||[]).map(q=>[q.id,q])),rows=new Map(connection.devices.filter(d=>MODEL_NAMES[d.model]).map(d=>[d.id,d]));
   for(const q of managed.values())if(!rows.has(q.id))rows.set(q.id,q);
-  const entries=[...rows].map(([id,d])=>{const q=managed.get(id),status=machineStatus(q,d),progress=q?.active&&typeof d.telemetry?.mc_percent==='number'?Math.max(0,Math.min(100,d.telemetry.mc_percent)):null;return {id,name:d.name,model:d.model,q,status,progress}});
+  const entries=[...rows].map(([id,d])=>{const q=managed.get(id),status=machineStatus(q,d),queueStatus=machineQueueStatus(q),printing=printerStateFresh(d)&&PRINTING_STATES.has(d.telemetry?.gcode_state),external=printing&&!q?.active,progress=printing&&Number.isFinite(d.telemetry?.mc_percent)?Math.max(0,Math.min(100,d.telemetry.mc_percent)):null;return {id,name:d.name,model:d.model,q,status,queueStatus,external,progress}});
   const key=JSON.stringify([entries,reply.data.device_id,busy,switchingQueue]);$('fleetCount').textContent=rows.size+tr(' 台');
   if(key===fleetKey)return;fleetKey=key;
   const focused=document.activeElement?.closest('#fleetQueues button')?.dataset.deviceId;body.replaceChildren();
   if(!rows.size){body.append(node('p','fleet-empty',tr('登录 Bambu Cloud 后，这里会显示你的 A1 和 P1S。')));return}
-  for(const {id,name,model,q,status,progress} of entries){
+  for(const {id,name,model,q,status,queueStatus,external,progress} of entries){
     const b=button('','fleet-machine'+(id===reply.data.device_id?' current-machine':''),()=>selectQueue(id),tr('查看 ')+name+tr(' 的队列'));b.dataset.deviceId=id;b.disabled=busy||switchingQueue;b.setAttribute('aria-pressed',String(id===reply.data.device_id));
     const top=node('span','fleet-machine-top'),glyph=node('span','machine-glyph');glyph.append(icon('printer'));top.append(glyph,node('strong','',name));b.append(top,node('small','machine-model',(MODEL_NAMES[model]||model||tr('打印机'))+' · '+id.slice(-4)),pill(...status),node('small','machine-count',q?q.pending+tr(' 盘等待')+(q.drafts?' · '+q.drafts+tr(' 个待配置'):''):tr('点击建立独立队列')));
+    if(queueStatus)b.append(pill(...queueStatus));
+    if(external)b.append(node('small','machine-task-origin',tr('非本队列任务')));
     if(progress!==null){const track=node('span','machine-progress'),fill=node('span');fill.style.width=progress+'%';track.append(fill);b.append(track,node('small','',progress+'%'))}
     body.append(b);
   }
@@ -141,7 +150,7 @@ function renderConnection(data){
   $('commandDevice').textContent=d?.name||tr('未选择打印机');$('printerName').textContent=tr('设备与耗材');
   $('importTarget').textContent=d?tr('加入 ')+d.name+tr(' · 随后配置耗材和份数'):tr('先选择打印机，再配置耗材和份数');
   $('quickAdd').disabled=!d||busy||switchingQueue;
-  setPill('printerBadge',fresh?(d.telemetry?.gcode_state==='IDLE'?tr('空闲'):tr('在线')):d?(d.online?tr('等待回报'):tr('离线')):tr('未选择'),fresh?'':d?'warning':'muted');
+  setPill('printerBadge',...machineStatus(null,d));
   setPill('cloudBadge',d?.cloud_connected?tr(latestReply?.connection_mode==='owned_cloud'?'Bambu Cloud 已连接':'Handy 云端已连接'):tr('等待云端连接'),d?.cloud_connected?'':'muted');
   $('connectionStatus').textContent=connection.available?tr(latestReply?.connection_mode==='owned_cloud'?(latestReply?.cloud_auth?.logged_in?'通过本插件的独立 Bambu Cloud 连接。':'请登录 Bambu Cloud。'):'通过 Orca 的 Bambu Cloud 连接。'):message(connection.reason)||tr('正在连接打印机…');
   const serviceUpdated=latestReply?.build_id===PAGE_BUILD_ID,historyAvailable=connection.available&&!!d?.monitor_epoch,bindingFailed=connection.error_code==='native_binding_failed';
@@ -223,6 +232,7 @@ function renderRun(data){const a=data.active,d=boundDevice(data),t=d?.telemetry|
   else if(a&&data.phase==='monitoring')text=(name||tr('当前任务'))+' · '+(t.gcode_state==='PAUSE'?tr('打印已暂停'):(t.mc_percent??'—')+'%');
   else if(!a&&!data.running&&data.phase==='paused')text=step==='device'?tr('先选择一台在线打印机。'):step==='jobs'?tr('加入单盘切片文件，按顺序准备打印。'):step==='materials'?tr('还有 ')+(r.jobs.length-r.configured)+tr(' 盘未配置耗材。'):step==='swap'?tr('先配置两盘之间的换盘文件。'):r.ready<r.jobs.length?tr('配置已保存。装好耗材后，检查并开始。'):tr('任务已准备好，可以检查并开始。');
   if(!a&&!data.running&&step==='materials'&&data.drafts?.length)text=data.drafts.length+tr(' 个文件待配置，确认后加入队列。');
+  if(!a&&!data.running&&printerStateFresh(d)&&PRINTING_STATES.has(t.gcode_state))text=tr('设备正在执行非本队列任务；请等待设备空闲后再开始队列。');
   if(checking)text=message(data.reason)||tr('正在核对本盘状态，后续任务暂不发送。');
   $('runStatus').textContent=text;$('stopQueue').title=tr('仅停止 ')+(d?.name||tr('当前机器'))+tr('，其他机器继续运行');$('startQueue').hidden=!!a||!!data.running||data.phase==='confirm_plate';$('startQueue').disabled=busy;$('preflight').disabled=busy||!r.jobs.length;$('startQueue').replaceChildren(document.createTextNode({device:tr('选择打印机'),jobs:tr('加入任务'),materials:tr('配置耗材'),swap:tr('配置换盘'),start:tr('检查并开始')}[step]||tr('检查并开始')),icon('arrow'));
   $('swapContinue').hidden=data.plate_mode==='manual'||!!a||!!data.running||!data.dirty_plate||!r.jobs.length||data.phase==='confirm_plate';$('swapContinue').disabled=busy;$('confirmPlate').hidden=data.phase!=='confirm_plate';$('stopQueue').hidden=!data.running&&!a;$('resumeMonitor').disabled=!a||!!data.running;$('reconcile').disabled=!!data.running||!a;

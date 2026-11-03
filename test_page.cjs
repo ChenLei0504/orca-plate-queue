@@ -62,6 +62,27 @@ function launch(initial=fixture()){
 const tests=[];function test(name,fn){tests.push([name,fn])}
 
 function multiFixture(){const s=fixture(),a=clone(s.data),b=clone(s.data);a.running=true;a.phase='monitoring';a.jobs[0].status='打印中';a.active={kind:'model',job_id:'job1',identity:{subtask_id:'a'},tag:'oq_a'};b.device_id='fixture-p1';b.plate_mode='manual';b.jobs=b.jobs.map(j=>({...j,id:'p1-'+j.id,printer:'C12',settings:{...j.settings,device_id:'fixture-p1',mapping:{'9':'ams/0/tray/0'}}}));const p1=clone(s.connection.devices[0]);p1.id='fixture-p1';p1.name='P1S';p1.model='C12';p1.supported_options=['bed_leveling','timelapse'];s.connection.devices.push(p1);s.queue_id='fixture-a1';s.data=a;s.fleet=[{id:'fixture-a1',name:'A1',model:'N2S',online:true,running:true,active:true,pending:1,completed:0},{id:'fixture-p1',name:'P1S',model:'C12',online:true,running:false,pending:2,completed:0}];s.queue_states={'fixture-a1':{data:a,setup:s.setup,swap_settings:s.swap_settings,swap_setup:s.swap_setup},'fixture-p1':{data:b,setup:Object.fromEntries(b.jobs.map(j=>[j.id,{configured:true,ready:true}])),swap_settings:{enabled:false,validated:false,path:'',settings:{device_id:'fixture-p1',source:'ams',mapping:{},options:{bed_leveling:true,flow_calibration:false,timelapse:false}}},swap_setup:{ready:false}}};return s}
+test('existing empty queue reflects external printing in fleet and device panel without taking control',async()=>{
+ const s=emptyImportFixture();s.fleet=[{id:'fixture-a1',active:false,running:false,phase:'completed',pending:0,drafts:0}];Object.assign(s.connection.devices[0].telemetry,{gcode_state:'RUNNING',mc_percent:42});
+ const t=launch(s);try{assert.equal(t.el('fleetQueues').querySelector('.status-pill').textContent,'打印中');assert.equal(t.el('printerBadge').textContent,'打印中');assert.match(t.el('fleetQueues').textContent,/42%/);assert.match(t.el('fleetQueues').textContent,/非本队列任务/);assert.match(t.el('runStatus').textContent,/非本队列任务/);assert.equal(t.el('currentTaskPanel').hidden,true);assert.equal(t.el('stopQueue').hidden,true);assert.equal(t.requests.some(r=>['start','stop_queue','pause_print','resume_print','end_current'].includes(r.action)),false);await chooseLanguage(t,'en');assert.equal(t.el('printerBadge').textContent,'Printing');assert.match(t.el('fleetQueues').textContent,/Task outside this queue/)}finally{t.close()}
+});
+test('live printer states take precedence over queue history and pending jobs',async()=>{
+ for(const [state,label] of Object.entries({RUNNING:'打印中',PAUSE:'打印已暂停',PREPARE:'准备打印',SLICING:'切片中',IDLE:'空闲',FINISH:'打印完成',FAILED:'打印失败',UNKNOWN:'状态未知'})){
+  const s=fixture();s.fleet=[{id:'fixture-a1',active:false,running:false,phase:'paused',pending:2,drafts:0}];s.connection.devices[0].telemetry.gcode_state=state;
+  const t=launch(s);try{assert.equal(t.el('fleetQueues').querySelector('.status-pill').textContent,label);assert.equal(t.el('printerBadge').textContent,label);assert.match(t.el('fleetQueues').textContent,/队列待开始/)}finally{t.close()}
+ }
+});
+test('stale or missing printer state never falls back to idle or stale progress',async()=>{
+ for(const change of [{state_age_ms:15001},{age_ms:15001},{cloud_connected:false},{telemetry:{}},{online:false}]){
+  const s=emptyImportFixture();s.fleet=[{id:'fixture-a1',active:false,running:false,phase:'completed',pending:0}];Object.assign(s.connection.devices[0],change);
+  const t=launch(s);try{const label=t.el('printerBadge').textContent;assert.notEqual(label,'空闲');assert.equal(t.el('fleetQueues').querySelector('.status-pill').textContent,label);assert.equal(t.el('fleetQueues').querySelector('.machine-progress'),null)}finally{t.close()}
+ }
+ const s=fixture();s.connection.available=false;const t=launch(s);try{assert.equal(t.el('printerBadge').textContent,'等待回报')}finally{t.close()}
+});
+test('polling updates external print state while retaining separate queue recovery notice',async()=>{
+ const s=emptyImportFixture();s.fleet=[{id:'fixture-a1',active:false,running:false,phase:'recovery',pending:0}];const t=launch(s);try{for(const [state,label] of [['RUNNING','打印中'],['PAUSE','打印已暂停'],['FINISH','打印完成'],['IDLE','空闲']]){s.connection.devices[0].telemetry.gcode_state=state;t.set(s);assert.equal(t.el('fleetQueues').querySelector('.status-pill').textContent,label);assert.equal(t.el('printerBadge').textContent,label);assert.match(t.el('fleetQueues').textContent,/需要核对/)}assert.equal(t.requests.some(r=>['start','complete_continue','confirm_plate'].includes(r.action)),false)}finally{t.close()}
+});
+
 test('multiple printers are visible and switching views does not stop a running queue',async()=>{
  const t=launch(multiFixture());try{assert.equal(t.el('fleetQueues').querySelectorAll('button').length,2);assert.ok([...t.el('fleetQueues').querySelectorAll('button')].every(b=>!b.disabled));[...t.el('fleetQueues').querySelectorAll('button')].find(b=>b.textContent.includes('P1S')).click();await tick();assert.equal(t.state().data.device_id,'fixture-p1');assert.equal(t.el('quickAdd').disabled,false);assert.equal(t.requests.find(r=>r.action==='select_queue').queue_id,'fixture-a1');assert.equal(t.state().queue_states['fixture-a1'].data.running,true);assert.equal(t.requests.filter(r=>r.action==='stop_queue').length,0);assert.match(t.el('jobs').textContent,/中部1/)}finally{t.close()}
 });
@@ -277,19 +298,19 @@ function bundledFixture(){const s=fixture();s.components={available:true,ready:f
 
 
 test('update status verifies both page service build and loaded history capability',async()=>{
- const s=fixture();s.build_id='20261103.9';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261103.9/);assert.match(t.el('buildService').textContent,/已更新.*20261103.9/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
+ const s=fixture();s.build_id='20261103.10';s.connection.devices[0].monitor_epoch='loaded-native-epoch';const t=launch(s);try{assert.match(t.el('buildLabel').textContent,/精简队列版.*20261103.10/);assert.match(t.el('buildService').textContent,/已更新.*20261103.10/);assert.equal(t.el('buildHistory').textContent,'连接组件：状态历史已启用');assert.match(t.el('connectionStatus').textContent,/状态历史已启用/)}finally{t.close()}
 });
 test('new page cannot mistake an old loaded bridge for a complete update',async()=>{
- const s=fixture();s.build_id='20261103.9';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
+ const s=fixture();s.build_id='20261103.10';const t=launch(s);try{assert.match(t.el('buildService').textContent,/已更新/);assert.match(t.el('buildHistory').textContent,/旧桥接.*完整重启/);assert.match(t.el('connectionStatus').textContent,/旧连接组件/)}finally{t.close()}
 });
 test('unmatched service or unavailable printer reports unknown update state clearly',async()=>{
  const s=fixture();s.connection={available:false,devices:[],reason:'未登录'};const t=launch(s);try{assert.match(t.el('buildService').textContent,/尚未匹配/);assert.equal(t.el('buildHistory').textContent,'连接组件：等待打印机状态');assert.equal(t.requests.some(r=>r.action==='connection_install'),false)}finally{t.close()}
 });
 test('AMS readiness checks the actually loaded material bridge separately from history',async()=>{
- const s=fixture();s.build_id='20261103.9';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
+ const s=fixture();s.build_id='20261103.10';s.connection.devices[0].monitor_epoch='loaded-history';const t=launch(s);try{assert.match(t.el('buildMaterials').textContent,/旧组件.*完整重启/);s.connection.material_mapping_ready=true;t.set(s);assert.equal(t.el('buildMaterials').textContent,'耗材映射：完整 AMS 映射已启用');assert.equal(t.requests.some(r=>['start','submit'].includes(r.action)),false)}finally{t.close()}
 });
 test('native binding failure is shown separately from waiting for telemetry',async()=>{
- const s=fixture();s.build_id='20261103.9';s.connection={available:false,devices:[],error_code:'native_binding_failed',reason:'无法绑定 Orca 已加载的连接组件（TypeError）。请更新队列插件并完整退出、重启 Orca。'};const t=launch(s);try{assert.match(t.el('buildHistory').textContent,/绑定失败/);assert.equal(t.el('buildMaterials').textContent,'耗材映射：等待桥接恢复');assert.match(t.el('bridgeNotice').textContent,/TypeError/);assert.equal(t.requests.some(r=>['start','submit','connection_install'].includes(r.action)),false)}finally{t.close()}
+ const s=fixture();s.build_id='20261103.10';s.connection={available:false,devices:[],error_code:'native_binding_failed',reason:'无法绑定 Orca 已加载的连接组件（TypeError）。请更新队列插件并完整退出、重启 Orca。'};const t=launch(s);try{assert.match(t.el('buildHistory').textContent,/绑定失败/);assert.equal(t.el('buildMaterials').textContent,'耗材映射：等待桥接恢复');assert.match(t.el('bridgeNotice').textContent,/TypeError/);assert.equal(t.requests.some(r=>['start','submit','connection_install'].includes(r.action)),false)}finally{t.close()}
 });
 test('connection guide is read-only in both local and cloud variants',async()=>{
  for(const state of [fixture(),bundledFixture()]){const t=launch(state);try{assert.equal(t.el('openConnection').hidden,false);assert.equal(t.w.document.getElementById('installComponents'),null);assert.equal(t.w.document.getElementById('restoreComponents'),null);t.el('openConnection').click();await tick();assert.equal(t.el('connectionDialog').open,true);assert.match(t.el('connectionDialog').textContent,/独立安装/);assert.equal(t.requests.some(r=>/^connection_/.test(r.action)),false);t.el('closeConnection').click();assert.equal(t.el('connectionDialog').open,false)}finally{t.close()}}

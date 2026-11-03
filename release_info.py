@@ -1,5 +1,5 @@
-QUEUE_VERSION = '0.7.9'
-QUEUE_BUILD_ID = '20261103.9'
+QUEUE_VERSION = '0.7.10'
+QUEUE_BUILD_ID = '20261103.10'
 CONNECTION_VERSION = '0.7.5'
 CONNECTION_DOWNLOAD_URL = 'https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.9/Orca-Queue-Connection-0.7.5-Windows-x64.zip'
 CONNECTION_SHA256 = 'ff2779532da214890e8ca04363069fdc769faa27f442202cb154f49eeb721b02'
