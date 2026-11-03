@@ -49,3 +49,16 @@ jobs:
         run: npm ci --prefix .ui-test-tools --ignore-scripts
       - name: Chinese and English UI regression tests
         run: node test_page.cjs
+
+  provider-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Independent provider ABI and lifetime (fake host only)
+        run: python native/build_sidecar.py

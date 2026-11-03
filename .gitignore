@@ -22,3 +22,5 @@ __pycache__/
 
 /vendor/sources/
 /native/compatible-build/
+
+/native/sidecar-build/

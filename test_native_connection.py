@@ -193,6 +193,23 @@ class NativeDiscoveryTests(unittest.TestCase):
         dll,calls,known=self.discover([('bambu_networking_02.03.00.dll',False),('bambu_networking_02.08.04.dll',True)])
         self.assertIs(dll,known['C:/fixture/bambu_networking_02.08.04.dll'])
 
+    def test_independent_provider_attaches_without_network_wrapper(self):
+        dll,calls,known=self.discover([('orca_plate_queue.dll',True)])
+        self.assertIs(dll,known['C:/fixture/orca_plate_queue.dll'])
+        self.assertEqual(len(calls),1)
+
+    def test_unbound_sidecar_keeps_legacy_fallback(self):
+        dll,calls,known=self.discover([('orca_plate_queue.dll',False),('bambu_networking.dll',True)])
+        self.assertIs(dll,known['C:/fixture/bambu_networking.dll'])
+
+    def test_sidecar_and_legacy_cannot_both_control_the_session(self):
+        with self.assertRaisesRegex(RuntimeError,'多个联网实例'):
+            self.discover([('orca_plate_queue.dll',True),('bambu_networking.dll',True)])
+
+    def test_sidecar_without_host_is_not_a_connection(self):
+        with self.assertRaisesRegex(RuntimeError,'等待 Orca'):
+            self.discover([('orca_plate_queue.dll',False)])
+
     def test_multiple_active_instances_are_rejected(self):
         with self.assertRaisesRegex(RuntimeError,'多个联网实例'):
             self.discover([('bambu_networking_02.03.00.dll',True),('bambu_networking_02.08.04.dll',True)])

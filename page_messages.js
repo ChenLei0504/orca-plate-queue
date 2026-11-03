@@ -742,6 +742,7 @@ window.QueueMessages=Object.freeze({
     "盘号或零件数量不受支持。": "Unsupported plate index or object count.",
     "目标打印机不支持所启用的打印选项。": "The printer does not support an enabled print option.",
     "目标打印机离线，或设备信息超过 15 秒未更新。": "The target printer is offline or its information is over 15 seconds old.",
+    "独立队列组件正在等待 Orca/Open Bamboo 提供连接接口；仅加载 DLL 不能建立连接。": "The independent queue component is waiting for Orca/Open Bamboo to provide a connection interface. Loading the DLL alone does not establish a connection.",
     "等待 Orca 创建唯一联网实例。": "Waiting for Orca to create one networking instance.",
     "等待 Orca 创建唯一联网实例，请先启用联网功能。": "Waiting for Orca to create one networking instance. Enable networking first.",
     "等待停止确认": "Waiting for stop confirmation",

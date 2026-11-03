@@ -1,7 +1,7 @@
-"""C-only access to the already-loaded queue forwarding DLL in Orca.
+"""C-only access to an already-loaded queue provider or legacy forwarding DLL.
 
 This never creates an agent, reads account files, or logs into a second
-session. All SDK C++ calls live in the compiled forwarding layer.
+session. SDK C++ calls remain with the host provider or legacy forwarding layer.
 """
 import ctypes
 import json
@@ -34,11 +34,13 @@ class NativeQueueBridge:
         if not kernel.GetModuleHandleW('OrcaSlicer.dll'):
             raise RuntimeError('请在 Orca 内使用连接桥接。')
         candidates=[]
+        independent_seen=False
         seen=set()
-        for name in ('bambu_networking_02.03.00.dll','bambu_networking_02.08.01.dll','bambu_networking_02.08.04.dll','bambu_networking.dll'):
+        for name in ('orca_plate_queue.dll','bambu_networking_02.03.00.dll','bambu_networking_02.08.01.dll','bambu_networking_02.08.04.dll','bambu_networking.dll'):
             module=kernel.GetModuleHandleW(name)
             if not module or module in seen:continue
             seen.add(module)
+            independent_seen |= name == 'orca_plate_queue.dll'
             # Bind the existing host handle directly. Never open a DLL from disk,
             # search plugin folders, resolve an installation path or create an agent.
             # Windows ctypes inspects name even when handle is supplied (3.12+).
@@ -69,6 +71,8 @@ class NativeQueueBridge:
         if not candidates:
             raise RuntimeError('尚未加载队列连接组件。请退出 Orca，用独立连接组件安装器安装后重启。支持接口 02.03.00 / 02.08.01 / 02.08.04。')
         if not attached:
+            if independent_seen:
+                raise RuntimeError('独立队列组件正在等待 Orca/Open Bamboo 提供连接接口；仅加载 DLL 不能建立连接。')
             raise RuntimeError('等待 Orca 创建唯一联网实例，请先启用联网功能。')
         dll=attached[0]
         try:
