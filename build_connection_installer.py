@@ -10,8 +10,8 @@ REFERENCES=['System.Windows.Forms.dll','System.Drawing.dll','System.Runtime.Seri
 def build():
     OUT.mkdir(exist_ok=True)
     common=[str(CSC),'/nologo','/optimize+','/platform:x64','/utf8output']+['/reference:'+r for r in REFERENCES]
-    subprocess.run(common+['/target:winexe','/out:'+str(OUT/'OrcaQueueConnectionSetup.exe'),str(ROOT/'ConnectionInstaller.cs')],check=True)
-    subprocess.run(common+['/target:exe','/main:ConnectionInstallerTests','/out:'+str(OUT/'ConnectionInstallerTests.exe'),str(ROOT/'ConnectionInstaller.cs'),str(ROOT/'ConnectionInstallerTests.cs')],check=True)
+    subprocess.run(common+['/target:winexe','/out:'+str(OUT/'OrcaQueueConnectionSetup.exe'),str(ROOT/'ConnectionInstaller.cs'),str(ROOT/'ConnectionCompatibility.cs')],check=True)
+    subprocess.run(common+['/target:exe','/main:ConnectionInstallerTests','/out:'+str(OUT/'ConnectionInstallerTests.exe'),str(ROOT/'ConnectionInstaller.cs'),str(ROOT/'ConnectionCompatibility.cs'),str(ROOT/'ConnectionInstallerTests.cs'),str(ROOT/'ConnectionCompatibilityTests.cs')],check=True)
 
 def test(bundle=None):
     import uuid

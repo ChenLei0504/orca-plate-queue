@@ -83,6 +83,8 @@ Orca Plate Queue 将多个**单盘切片 3MF**排成队列，每台打印机独�
 
 连接组件可从 **[0.7.3 发布页](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.3)** 获取，也可使用 **[固定下载链接](https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.3/Orca-Queue-Connection-0.7.3-Windows-x64.zip)**。队列版本与连接组件版本独立，数字不同是正常的。
 
+另有正在验证的[兼容适配器方案](兼容适配器说明.txt)：按 ABI 和导出函数检查，原样保留用户安装的 Open Bamboo 核心；更新后可重新适配。本地验证包尚未替换云端默认下载，不表示已完成实机验收。
+
 1. 在 Orca 中打开 **文件 → 插件**，使用“安装插件”选择 `.whl`，并激活队列插件。若使用已发布的 Orca Cloud 订阅版，则在同一 Orca Cloud 账号下刷新并激活。
 2. 确认 Orca 已启用打印机联网功能。保存工程，**完整退出 Orca**。
 3. 将独立连接 ZIP **完整解压**，打开 `OrcaQueueConnectionSetup.exe`。先点“检查”，核对 Orca 数据目录，再点“安装 / 更新”。便携版请选实际使用的数据目录。
@@ -282,6 +284,8 @@ Use the **[Releases page](https://github.com/ChenLei0504/orca-plate-queue/releas
 | `SHA256SUMS.txt` | Artifact SHA256 checksums. |
 
 The pinned connection component is available from the **[0.7.3 release](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.3)** or its **[direct download](https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.3/Orca-Queue-Connection-0.7.3-Windows-x64.zip)**. Queue and connection versions are independent.
+
+An [adapter-only compatibility preview](兼容适配器说明.txt) preserves the installed Open Bamboo core and validates its ABI/export contract. It supports readaptation after updates. The local preview has not replaced the default cloud download and has not completed real-printer acceptance.
 
 1. In Orca, open **File → Plugins**, install the `.whl` and activate it. For an available Orca Cloud subscription release, refresh and activate it using the same Orca Cloud account.
 2. Enable Orca's printer networking feature. Save your projects and **fully exit Orca**.

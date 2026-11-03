@@ -24,6 +24,7 @@ SOURCES=['build_plugin.py','build_public_release.py','printer_models.py',
     'test_plugin.py','test_queue.py','test_refill.py','test_setup.py','test_public_release.py','preview_release.cjs','finalize_public_release.py','verification/capture_public_release.py',
     '.ui-test-tools/package.json','.ui-test-tools/package-lock.json',
     'release_info.py','local_paths.py','page_assets.py','page_preferences.py','page_messages.js','page_i18n.js','ConnectionInstaller.cs','ConnectionInstallerTests.cs','build_connection_installer.py','test_split_release.py','test_page_preferences.py','test_local_paths.py','test_initialization.py','vendor/open-bamboo-b14f880.tar.gz','发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt']
+SOURCES+=['ConnectionCompatibility.cs','ConnectionCompatibilityTests.cs','build_compatible_connection.py','native/test_compatible_bridges.py','兼容适配器说明.txt']
 SOURCES+=['native/'+name for name in ('build_bridge.py','build_public_bridges.py','queue_bridge.cpp',
     'queue_commands.inc','queue_cache.cpp','queue_cache.hpp','queue_models.hpp','test_cache.cpp',
     'test_host.cpp','test_upstream.cpp','test_public_bridges.py','public-build/bridges.json','prior-reviewed-bridges.json')]

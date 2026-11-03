@@ -28,6 +28,9 @@ jobs:
         run: python -X utf8 build_plugin.py
       - name: Runtime and Windows ctypes regression tests
         run: python -X utf8 -m unittest discover -q
+      - name: Connection installer compatibility and rollback (offline only)
+        if: matrix.python == '3.12'
+        run: python -X utf8 build_connection_installer.py
       - name: Publishing validation tests (offline only)
         run: python -X utf8 -m unittest ci.test_publish_orcacloud -q
 

@@ -21,6 +21,9 @@ using System.Windows.Forms;
     [DataMember] public string bridge;
     [DataMember] public string backend;
     [DataMember] public string[] compatible_bridge_hashes;
+    [DataMember] public string abi;
+    [DataMember] public string[] exports;
+    [DataMember] public string legacy_backend;
 }
 [DataContract] public sealed class ComponentManifest {
     [DataMember] public int schema;
@@ -38,9 +41,13 @@ using System.Windows.Forms;
     [DataMember] public string target;
     [DataMember] public string phase;
     [DataMember] public List<ComponentRow> files;
+    [DataMember] public List<ComponentRow> backends;
+    [DataMember] public List<ComponentRow> entries;
 }
 [DataContract] public sealed class LatestReceipt { [DataMember] public string backup; }
 public sealed class ComponentPlan {
+    public Dictionary<string,string> sources = new Dictionary<string,string>();
+    public List<string> notes = new List<string>();
     public ComponentManifest manifest;
     public string target;
     public List<ComponentRow> changes = new List<ComponentRow>();
@@ -57,7 +64,7 @@ public sealed class ComponentFiles : IComponentFiles {
         finally { foreach (var p in processes) p.Dispose(); }
     }
     public void Place(string source, string target, string expected) {
-        string pending = target + ".pending-" + Guid.NewGuid().ToString("N");
+        string pending = Path.Combine(Path.GetDirectoryName(target), ".queue-" + Guid.NewGuid().ToString("N") + ".tmp");
         try {
             File.Copy(source, pending, false);
             if (ConnectionManager.Hash(pending) != expected) throw new IOException("组件复制校验失败。");
@@ -67,7 +74,7 @@ public sealed class ComponentFiles : IComponentFiles {
     }
     public void Delete(string path) { File.Delete(path); }
 }
-public sealed class ConnectionManager {
+public sealed partial class ConnectionManager {
     readonly string bundle, data;
     readonly IComponentFiles files;
     public ConnectionManager(string bundle, string data, IComponentFiles files) {
@@ -87,7 +94,7 @@ public sealed class ConnectionManager {
     }
     static void Write<T>(string path, T value) {
         var settings = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
-        string pending = path + ".pending-" + Guid.NewGuid().ToString("N");
+        string pending = Path.Combine(Path.GetDirectoryName(path), ".queue-" + Guid.NewGuid().ToString("N") + ".tmp");
         try {
             using (var stream = new FileStream(pending, FileMode.CreateNew, FileAccess.Write)) {
                 new DataContractJsonSerializer(typeof(T), settings).WriteObject(stream, value); stream.Flush(true);
@@ -121,7 +128,7 @@ public sealed class ConnectionManager {
     }
     public ComponentManifest Verify() {
         var manifest = Read<ComponentManifest>(Path.Combine(bundle, "components.json"));
-        if (manifest.schema != 1 || manifest.files == null || manifest.files.Count == 0 || manifest.files.Count > 32 || manifest.series == null)
+        if ((manifest.schema != 1 && manifest.schema != 2) || manifest.files == null || manifest.files.Count == 0 || manifest.files.Count > 32 || manifest.series == null)
             throw new IOException("组件清单格式不支持。");
         foreach (var item in manifest.files) {
             string path = Child(Path.Combine(bundle, "bin"), item.Key);
@@ -137,6 +144,7 @@ public sealed class ConnectionManager {
     }
     public ComponentPlan Check() {
         var manifest = Verify();
+        if (manifest.schema == 2) return CompatiblePlan(manifest);
         var plan = new ComponentPlan { manifest = manifest, target = Path.GetFullPath(Path.Combine(data, "plugins")) };
         Plain(plan.target);
         foreach (var item in manifest.files.OrderBy(x => x.Value.role == "bridge").ThenBy(x => x.Key)) {
@@ -167,23 +175,48 @@ public sealed class ConnectionManager {
         } else files.Delete(path);
     }
     public string Install() {
-        Closed(); var plan = Check();
+        Closed(); return Apply(Check());
+    }
+    public string InstallReviewed(ComponentPlan reviewed) {
+        Closed();var current=Check();
+        Func<ComponentPlan,string[]> signature=p=>p.changes.Select(r=>r.name+"|"+r.before+"|"+r.after).ToArray();
+        if(reviewed==null||reviewed.target!=current.target||!signature(reviewed).SequenceEqual(signature(current)))
+            throw new IOException("组件在确认后发生变化，请重新检查。");
+        return Apply(current);
+    }
+    string Apply(ComponentPlan plan) {
         if (plan.changes.Count == 0) return "连接组件已匹配，无需重复安装。";
         string backupRoot = Path.Combine(data, "queue-connection-backups"); Plain(backupRoot);
-        string backup = Path.Combine(backupRoot, DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N"));
+        string backup = Path.Combine(backupRoot, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(backup); Directory.CreateDirectory(plan.target);
         foreach (var row in plan.changes) if (row.before != "") {
             File.Copy(Child(plan.target, row.name), Child(backup, row.name), false);
             if (Hash(Child(backup, row.name)) != row.before) throw new IOException("备份文件校验失败。");
         }
-        var receipt = new ComponentReceipt { target = plan.target, phase = "prepared", files = plan.changes };
+        // Freeze every source before replacing entry points: a backend source may
+        // be the user's current entry-point DLL. Never load it during install.
+        string incoming=Path.Combine(backup,"incoming");Directory.CreateDirectory(incoming);
+        foreach(var row in plan.changes) {
+            string source; if(!plan.sources.TryGetValue(row.name,out source))source=Child(Path.Combine(bundle,"bin"),row.name);
+            File.Copy(source,Child(incoming,row.name),false);
+            if(Hash(Child(incoming,row.name))!=row.after)throw new IOException("联网核心在检查后发生变化，已停止安装。");
+        }
+        var receipt = new ComponentReceipt { schema=plan.manifest.schema, target = plan.target, phase = "prepared", files = plan.changes, backends=new List<ComponentRow>(), entries=new List<ComponentRow>() };
         string receiptPath = Path.Combine(backup, "receipt.json"); Write(receiptPath, receipt);
         var changed = new List<ComponentRow>();
         try {
             foreach (var row in plan.changes) {
                 Closed(); string path = Child(plan.target, row.name);
                 if (Hash(path) != row.before) throw new IOException("组件被其他安装器修改，安装中止。");
-                changed.Add(row); files.Place(Child(Path.Combine(bundle, "bin"), row.name), path, row.after);
+                changed.Add(row); files.Place(ReplacementSource(bundle,backup,row), path, row.after);
+            }
+            if(plan.manifest.schema==2) foreach(var spec in plan.manifest.series.Values) {
+                string h=Hash(Child(plan.target,spec.backend));
+                string entryHash=Hash(Child(plan.target,spec.bridge));
+                if(entryHash==plan.manifest.files[spec.bridge].sha256) {
+                    if(h!="")receipt.backends.Add(new ComponentRow{name=spec.backend,after=h,before=""});
+                    receipt.entries.Add(new ComponentRow{name=spec.bridge,after=entryHash,before=""});
+                }
             }
             receipt.phase = "installed"; Write(receiptPath, receipt);
             Write(Path.Combine(backupRoot, "latest.json"), new LatestReceipt { backup = Path.GetFileName(backup) });
@@ -195,7 +228,7 @@ public sealed class ConnectionManager {
             if (failures.Count != 0) throw new IOException("安装失败，部分文件需要恢复，请保留备份：" + backup, original);
             throw;
         }
-        return "连接组件已安装。重新打开 Orca，在首页登录 Bambu Cloud。\r\n备份：" + backup;
+        return "连接组件已安装。请重新打开 Orca。" + (plan.manifest.schema==2 ? "已保留现有 Open Bamboo 核心，不会降级联网版本。" : "在首页登录 Bambu Cloud。") + "\r\n备份：" + backup;
     }
     public string Restore() {
         Closed(); var manifest = Verify();
@@ -206,10 +239,10 @@ public sealed class ConnectionManager {
         string receiptPath = Path.Combine(backup, "receipt.json");
         var receipt = Read<ComponentReceipt>(receiptPath);
         string target = Path.GetFullPath(Path.Combine(data, "plugins"));
-        if (receipt.schema != 1 || receipt.target != target || receipt.phase != "installed" || receipt.files == null || receipt.files.Count > manifest.files.Count)
+        if ((receipt.schema != 1 && receipt.schema != 2) || receipt.target != target || receipt.phase != "installed" || receipt.files == null || receipt.files.Count > manifest.files.Count+manifest.series.Count || receipt.files.Select(r=>r.name).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=receipt.files.Count)
             throw new IOException("备份不属于当前目录，或该安装已恢复。");
         foreach (var row in receipt.files) {
-            if (!manifest.files.ContainsKey(row.name) || row.after != manifest.files[row.name].sha256) throw new IOException("备份包含未知组件。");
+            ValidateRestoreRow(manifest,receipt,row,backup);
             string current = Hash(Child(target, row.name));
             if (current != row.before && current != row.after) throw new IOException("组件已被其他安装器更新，恢复中止。");
             if (row.before != "" && Hash(Child(backup, row.name)) != row.before) throw new IOException("备份校验失败。");
@@ -225,7 +258,7 @@ public sealed class ConnectionManager {
                 var row = item.Item1; string path = Child(target, row.name), current = Hash(path);
                 if (current == item.Item2) continue;
                 if (current != row.before) throw new IOException("恢复期间组件发生变化。");
-                if (item.Item2 == row.after) files.Place(Child(Path.Combine(bundle, "bin"), row.name), path, row.after);
+                if (item.Item2 == row.after) files.Place(ReplacementSource(bundle,backup,row), path, row.after);
             } catch (Exception e) { failures.Add(e.Message); }
             if (failures.Count != 0) { receipt.phase = "repair_required"; Write(receiptPath, receipt); throw new IOException("恢复未完成，请保留备份：" + backup, original); }
             throw;
@@ -238,16 +271,16 @@ public sealed class ConnectionInstallerForm : Form {
     readonly TextBox target = new TextBox(), status = new TextBox();
     readonly Button check = new Button(), install = new Button(), restore = new Button();
     public ConnectionInstallerForm() {
-        Text = "Orca 队列连接组件 · 0.7.3 独立安装器"; Width = 760; Height = 480; MinimumSize = new System.Drawing.Size(680, 400);
+        Text = "Orca 队列连接适配器 · 0.7.4"; Width = 760; Height = 480; MinimumSize = new System.Drawing.Size(680, 400);
         Font = new System.Drawing.Font("Microsoft YaHei UI", 10); StartPosition = FormStartPosition.CenterScreen;
-        var label = new Label { Text = "先保存工程并退出 Orca。安装会备份和更换联网文件；队列、账号和打印机均不操作。", Dock = DockStyle.Top, Height = 64, Padding = new Padding(14) };
+        var label = new Label { Text = "先保存工程并退出 Orca。适配前会备份联网入口；兼容模式保留现有 Open Bamboo 核心。", Dock = DockStyle.Top, Height = 64, Padding = new Padding(14) };
         target.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OrcaSlicer"); target.Dock = DockStyle.Top;
         var choose = new Button { Text = "选择 Orca 数据目录（便携版）", AutoSize = true };
         choose.Click += delegate { using (var picker = new FolderBrowserDialog()) { picker.Description = "选择 OrcaSlicer 数据目录，不是程序安装目录"; if (picker.ShowDialog(this) == DialogResult.OK) target.Text = picker.SelectedPath; } };
         status.Multiline = true; status.ReadOnly = true; status.ScrollBars = ScrollBars.Vertical; status.Dock = DockStyle.Fill;
-        status.Text = "建议先点“检查”。首次安装需要保留同目录 bin、components.json 和源码压缩包。\r\n此工具不下载文件、不运行其他程序，也不连接打印机。";
+        status.Text = "建议先点“检查”。请完整解压并保留同目录 bin、components.json 和源码包。\r\n此工具不下载文件、不运行其他程序，也不连接打印机。";
         var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 56, Padding = new Padding(10), FlowDirection = FlowDirection.LeftToRight };
-        check.Text = "检查"; install.Text = "安装 / 更新"; restore.Text = "恢复原组件";
+        check.Text = "检查"; install.Text = "安装 / 重新适配"; restore.Text = "恢复原组件";
         foreach (var button in new [] { check, install, restore }) { button.AutoSize = true; actions.Controls.Add(button); }
         target.AutoSize = false; target.Height = 28; choose.Height = 30; choose.AutoSize = false;
         var paths = new Panel { Dock = DockStyle.Top, Height = 90, Padding = new Padding(10) }; paths.Controls.Add(target); choose.Dock = DockStyle.Bottom; paths.Controls.Add(choose);
@@ -258,12 +291,21 @@ public sealed class ConnectionInstallerForm : Form {
     }
     bool BackupAvailable() { try { return new ConnectionManager(AppDomain.CurrentDomain.BaseDirectory,target.Text,new ComponentFiles()).HasRestorableBackup(); } catch { return false; } }
     void Run(string action) {
-        if (action != "check" && MessageBox.Show(this, "将" + (action == "install" ? "备份并安装" : "恢复") + "此目录的联网组件：\r\n" + target.Text + "\r\n请确认已完整退出 Orca。", "连接组件", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
         check.Enabled = install.Enabled = restore.Enabled = false;
         try {
             var manager = new ConnectionManager(AppDomain.CurrentDomain.BaseDirectory, target.Text, new ComponentFiles());
-            if (action == "check") { var plan = manager.Check(); status.Text = plan.changes.Count == 0 ? "连接组件已匹配，无需重复安装。" : "需要安装 / 更新：\r\n" + String.Join("\r\n", plan.changes.Select(x => x.name)); }
-            else status.Text = action == "install" ? manager.Install() : manager.Restore();
+            if(action=="restore") {
+                if(MessageBox.Show(this,"恢复此目录安装前的联网文件：\r\n"+target.Text+"\r\n请确认已完整退出 Orca。","恢复原组件",MessageBoxButtons.OKCancel,MessageBoxIcon.Information)!=DialogResult.OK)return;
+                status.Text=manager.Restore();
+            } else {
+                var plan=manager.Check();
+                status.Text="目标："+plan.target+"\r\n"+String.Join("\r\n",plan.notes)+"\r\n"+
+                    (plan.changes.Count==0?"连接组件已匹配，无需重复安装。":"拟更新文件：\r\n"+String.Join("\r\n",plan.changes.Select(r=>r.name)));
+                if(action=="check"||plan.changes.Count==0)return;
+                string explanation=plan.manifest.schema==2?"保留当前 Open Bamboo 核心，仅安装兼容的队列桥接。":"本包会安装固定版本联网核心。";
+                if(MessageBox.Show(this,explanation+"\r\n"+status.Text+"\r\n请确认已结束打印、保存工程并完整退出 Orca。","确认备份并适配",MessageBoxButtons.OKCancel,MessageBoxIcon.Information)!=DialogResult.OK)return;
+                status.Text=manager.InstallReviewed(plan);
+            }
         } catch (Exception e) { status.Text = "操作未完成：" + e.Message; }
         finally { check.Enabled = install.Enabled = true; restore.Enabled=BackupAvailable(); }
     }

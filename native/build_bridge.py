@@ -136,7 +136,7 @@ def split_params(raw):
 
 
 def compiler_environment():
-    msvc = PROJECT/'vendor/msvc'
+    msvc = Path(os.environ.get('ORCA_QUEUE_MSVC_ROOT', str(PROJECT/'vendor/msvc')))
     vc = next((msvc/'VC/Tools/MSVC').iterdir())
     sdk = msvc/'Windows Kits/10'
     ver = next((sdk/'Include').iterdir()).name

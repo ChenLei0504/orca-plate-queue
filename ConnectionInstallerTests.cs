@@ -30,6 +30,10 @@ static class ConnectionInstallerTests {
         byte[] b = new byte[128]; b[0]=77;b[1]=90;b[60]=64;b[64]=80;b[65]=69;b[68]=100;b[69]=134;b[100]=marker;File.WriteAllBytes(path,b);
     }
     [STAThread] public static void Main(string[] args) {
+        try { Run(args); }
+        catch(Exception error) { Console.WriteLine("FAIL "+error.GetType().Name+": "+error.Message);Console.WriteLine(error.StackTrace);Environment.ExitCode=1; }
+    }
+    static void Run(string[] args) {
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         string root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);
         string bundle=Path.Combine(root,"bundle"),bin=Path.Combine(bundle,"bin");Directory.CreateDirectory(bin);
@@ -67,7 +71,9 @@ static class ConnectionInstallerTests {
         io.failDelete=2;Fails(()=>manager.Restore());Assert(manager.Check().changes.Count==0,"Restore rollback failed");io.failDelete=0;manager.Restore();
         Fails(()=>ConnectionManager.Child(root,"../escape.dll"));
         PE(Path.Combine(bin,bridge),99);data=Path.Combine(root,"tamper");manager=new ConnectionManager(bundle,data,new FixtureFiles());Fails(()=>manager.Install());Assert(!Directory.Exists(data),"Tamper wrote target");
-        if(args.Length>1)new ConnectionManager(args[1],Path.Combine(root,"real-bundle-check-only"),new FixtureFiles()).Verify();
+        if(args.Length==1)ConnectionCompatibilityTests.Run(root,ConnectionCompatibilityTests.FixtureBundle(root));
+        if(args.Length>1) { new ConnectionManager(args[1],Path.Combine(root,"real-bundle-check-only"),new FixtureFiles()).Verify();ConnectionCompatibilityTests.Run(root,args[1]); }
+        if(args.Length>3)ConnectionCompatibilityTests.RealCores(root,args[1],args[2],args[3]);
         using(var form=new ConnectionInstallerForm()) using(var image=new Bitmap(form.Width,form.Height)) {
             Layout(form);form.DrawToBitmap(image,new Rectangle(0,0,form.Width,form.Height));image.Save(Path.Combine(root,"installer-preview.png"));
         }
