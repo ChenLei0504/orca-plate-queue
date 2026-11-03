@@ -1,53 +1,26 @@
-0.7.8 界面修复：弹窗内产生的提示直接显示在当前弹窗内；移除重复的“检查已保存的文件”按钮，保留保存和发送前的自动校验；修改换盘设置后明确提示尚未保存。
+Orca Plate Queue 0.7.8 · build 20261103.8
+Open Bamboo 0.2.45 兼容测试包 / Compatibility preview
 
-0.7.8 权限恢复修复：常规长度路径保留普通写法；初始化被 Orca 权限检查中断后，可在允许权限后点击“重新初始化”。失败时释放执行锁，普通刷新不重复触发初始化或权限弹窗，已运行的队列不会因重试按钮重新启动。
+本轮回到 0.7.8 的队列桥接方案。连接适配器 0.7.5 保留用户已安装的兼容 Open Bamboo 核心，继续复用 Orca 首页的 Bambu Cloud 登录；不需要独立云登录。
 
-0.7.8 长路径修复：统一处理 Windows 文件读写边界，覆盖长缓存路径、换盘文件、拖入暂存、SQLite、索引与偏好；已有队列目录与文件身份不变。已在未启用 longPathAware 的嵌入式 Python 宿主中复现旧版 FileNotFoundError，并验证修复后的流程。构建 20261102.5，连接组件仍为 0.7.3。
+安装：
+1. 在 Open Bamboo 页面安装 / 更新联网库。插件列表版本更新不等于核心已更新。
+2. 保存工程并完整退出 Orca。
+3. 完整解压 Orca-Queue-Connection-0.7.5-Windows-x64.zip，打开 OrcaQueueConnectionSetup.exe，检查后安装 / 重新适配。
+4. 启动 Orca，安装或启用本包 0.7.8 队列 wheel。页面构建应为 20261103.8。
+5. 继续使用 Orca 首页 Bambu Cloud 登录，核对打印机温度及 AMS 后再由用户开始测试打印。
 
-0.7.8 中英双语：默认简体中文，右上角可切换 English。语言偏好独立保存在插件私有目录，对所有本机队列生效；重开后保留。切换保留份数、耗材和零件选择，不改变打印指令。后台常见连接、校验和恢复提示同步提供英文。保留 0.7.5 的 Windows ctypes 修复；连接组件继续使用 0.7.3。
+Open Bamboo 将来更新可能覆盖桥接入口；届时退出 Orca 后重新适配。适配器不常驻，不自动更换联网库，不改动账号和队列。
 
-Orca Plate Queue 0.7.8 · Windows x64 · 精简队列发布版
+已验证：0.2.45 源码 32e31a3 的公开 ABI 头文件、导出函数签名；四个入口的虚拟 SDK 测试；实际 DLL 副本的安装、保留和恢复。
+尚未验证：本次新版核心下的真实打印、AMS 进料、打印完成后换盘、Handy 同时在线。
+本包为本地验证产物，尚未推送 GitHub 或发布云市场。
 
-本版将打印队列与联网组件安装分开。队列包仍管理 A1 / P1S 独立队列、AMS / AMS Lite / 外挂、A1 指定换盘文件、零件跳过和 Handy 连接。联网安装器只需首次安装或连接组件需要更新时使用。
+保留 0.7.8 既有任务功能：A1 / P1S 独立队列、模型预览、耗材与份数配置、拖拽排序、任务删除、零件跳过、中断核对、中文 / English。
+A1 自动换盘需要自行配备兼容机构和换盘文件；P1S 手动清板后确认继续。电脑与 Orca 必须保持运行。
 
-首次安装
-1. 在支持插件的 OrcaSlicer 2.5.0 beta 中安装 Orca_Plate_Queue_win_x86_64.whl 并激活。
-2. 正常启用 Orca 的打印机联网功能。保存工程并完整退出 Orca。
-3. 解压 Orca-Queue-Connection-0.7.3-Windows-x64.zip，打开 OrcaQueueConnectionSetup.exe，先检查，再点击“安装 / 更新”。请先阅读源码和安装说明。
-4. 重新打开 Orca，在首页登录 Bambu Cloud。Orca Cloud 是插件市场账号，两者不同。
-5. 回到队列，选择打印机，核对温度、AMS 槽位和耗材，导入单盘切片 3MF 后配置份数。
-
-已有用户
-已经安装本项目匹配的连接桥接（包含 0.7.2 的 AMS 标记修复）时，无需重复安装连接组件。普通 Open Bamboo 用户仍需首次安装队列桥接。保留原 Open Bamboo 插件，不另建登录实例。
-本地更新保留 v3 队列数据结构和设置。云订阅与本地开发插件可能拥有不同私有目录，不自动合并。不要同时激活两套队列插件。
-
-如何确认更新
-插件和页面显示 0.7.8，构建号 20261102.5。ⓘ → 更新状态应显示队列服务已更新、状态历史已启用、完整 AMS 映射已启用。若连接组件过旧，请退出 Orca 后使用独立安装器，不能只刷新页面。
-
-队列包权限范围
-正常导入、文件缓存、数据库、报告和临时文件清理位于 Orca 提供的插件私有存储目录。用户选择的原始 3MF 仅读取，不覆盖或删除。
-队列插件不读取 APPDATA、账号文件、密钥或通用环境变量；不运行命令、启动其他程序、下载或动态执行 Python 代码。
-队列包不附带 DLL、组件安装和恢复代码、构建器或测试脚本。所有运行 Python / HTML / CSS / JavaScript 都是可阅读的原始文件。
-为保持打印功能，仍需通过 ctypes 调用 Orca 已加载的队列桥接；使用已有模块句柄，不从磁盘加载第三方 DLL。因此原生代码调用提示仍属真实能力，不能承诺市场评为低风险。
-连接说明页面只提供步骤和当前连接检测，没有安装或恢复按钮。
-
-独立安装器
-安装器修改 Orca 数据目录 plugins 下清单列出的联网文件，操作前备份并校验，失败回退。恢复会拒绝覆盖被其他安装器更新的文件。已存在的相机依赖文件保留。
-安装器不安装队列页面、不读写队列数据库、不修改账号或 Orca 配置、不操作打印机。需要关闭 Orca；不需要管理员权限或另外安装 Python 或 PowerShell。Windows 安全策略若阻止独立工具，请交由本机管理员审核，本项目不关闭系统防护或自动绕过执行策略。
-
-打印与换盘
-电脑和 Orca 必须持续运行，云端市场只分发插件，不在云端执行队列。
-A1 使用用户自备且匹配套件的独立换盘 3MF；本包不分发套件文件。P1S 手动换板并确认。最后一盘留在打印机上。
-保留原始单盘文件和原生对象标签，不通过合盘修改实现续打。停止整队列、结束本盘继续、Handy 外部停止分别处理，不自动重发结果不明的任务。
-AMS 映射沿用 0.7.2：未使用编号为 255/255，真正外挂为 255/0，使用中的 AMS 编号保留实际槽位。
-
-测试与源码
-软件测试和假 SDK 边界测试不等于实机验收。此前的 AMS 进料修复仍未获得用户实机成功确认；本次拆分不宣称修复已通过实机验证。首次连续运行需看守。
-队列包直接包含维护所用的模块化运行源码；完整工程、构建与测试脚本在 source-0.7.8.zip。独立连接包同时自带与 DLL 对应的完整工程源码、固定上游源码和原始许可证。
-按 AGPL-3.0-or-later 提供。发布页请同时提供完整工程源码与独立连接组件下载地址，保留 LICENSE / NOTICE。独立社区项目，无官方背书。
-
-独立工具尚未进行商业代码签名，Windows 可能显示未知发布者。请核对可信来源与 SHA256；若被安全策略阻止，不要关闭防护。工具提供可阅读源码和完整对应源码包。
-
-0.7.8 更新：新增持久化双语页面与独立文案、格式化和偏好模块。联网组件继续使用已经发布的 0.7.3，不更改 DLL，不自动下载安装程序。
-连接组件下载：https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.3/Orca-Queue-Connection-0.7.3-Windows-x64.zip
-公开发布页：https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.3
+English
+Use queue 0.7.8 with connection adapter 0.7.5 and the installed Open Bamboo 0.2.45 core. Update the library in Open Bamboo, exit Orca, extract the adapter ZIP, Check, Install / Readapt, restart and activate the queue wheel. Continue using Orca's Bambu Cloud login.
+The adapter preserves the compatible installed core. Future Open Bamboo updates may require readaptation. No private cloud sign-in is required.
+Offline ABI, fake-SDK forwarding and actual-binary copy/restore tests passed. Real printing, AMS feed, plate changes and concurrent Handy access remain pending. This local candidate has not been published.
+AGPL-3.0-or-later; corresponding source, original baseline source and notices are included. Independent community project, no official endorsement.

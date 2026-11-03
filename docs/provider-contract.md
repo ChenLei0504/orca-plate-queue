@@ -135,39 +135,3 @@ The host must supply cached snapshots, asynchronous refresh/command handling, co
 Callbacks are serialized and must not reenter the sidecar or synchronously wait for UI/network work. Successful unregister waits for in-flight callbacks; the host remains responsible for draining asynchronous work. Keep the sidecar loaded while consumers may retain its function pointers.
 
 Windows fake-host tests and Python discovery tests exercise this prototype. A Linux build job tests portable source compilation only; this does not make the whole queue plugin cross-platform or add LAN mode. Real-printer and upstream integration acceptance remain outstanding. The existing compatibility adapter stays the transition path until those are complete.
-
-## Orca Python 宿主入口（拟议，尚未由原版 Orca 提供）
-
-队列端也可直接接入 `orca.host.queue_bridge_v1`，无需经过独立 DLL。
-这只是本项目定义的宿主扩展协议，**不是 Orca 2.5.0 已有的公开接口**。
-当前页面启动时会把宿主传入连接层，并在创建连接时固定入口；运行中替换属性不会切换正在执行的队列。
-独立云测试包仍是另一个显式构建模式，本次不会将测试包伪装为宿主接入版。
-
-宿主对象需要提供以下三个线程安全的方法：
-
-| 方法 | 契约 |
-| --- | --- |
-| `snapshot()` | 返回上述 JSON 协议对应的 Python 字典；读取缓存，不访问 UI 或等待网络 |
-| `refresh()` | 异步刷新设备目录与状态，不切换当前打印机，不重新登录 |
-| `command(request)` | 接收上述命令字典，复制后异步处理；整数 0 或 1 表示接受，其余表示拒绝 |
-
-快照中的 `material_mapping_ready:true` 必须代表完整支持本文耗材映射协议，不能仅凭打印机带 AMS 设置。
-队列对宿主提交前检查该标志，映射不能就绪时阻止发送，不回退到外挂。
-宿主仍负责最后一刻的设备身份、状态、登录会话、打印参数和幂等校验；Python 侧检查不能替代宿主校验。
-
-多机监控沿用 `watch_many`。队列把各机器的监控请求合并，最多 32 台；只订阅校验后目录中的 A1 / P1S。
-重复订阅使用固定请求标识 `watch_queue_devices`，宿主必须将其作为订阅集合更新处理，不能当成一次性打印命令去重。
-队列每次有效快照可重申订阅，宿主应幂等处理，不应每次重建 MQTT 会话。
-`refresh`、`snapshot` 和 `command` 可来自队列工作线程，宿主需自行将 UI 操作调度至主线程。
-队列卸载只停止自己的工作线程，不关闭宿主提供的对象，不退出 Bambu Cloud，也不停止打印。
-
-### 还缺少的宿主实现
-
-1. 在 Orca 插件 API 中正式开放上述入口，并明确授权及版本协商。
-2. 由 Orca 持有当前联网实例，给接口提供设备目录、被动状态订阅和原生打印提交能力。
-3. 将本文的文件、耗材映射、任务身份和终态历史转换为原生参数及状态；不泄露登录凭据。
-4. 验证 Open Bamboo 更新、账号切换、断网重连、插件卸载及多机并行下的生命周期。
-
-`app_info().is_bambu_signed_in` 只能说明登录状态，不能代替这些能力。
-只有队列端测试通过并不能证明真实 Orca 已接通；必须使用实现该接口的宿主构建进行真机验收。
-本次不覆盖联网 DLL、不读取账号配置，也未向上游发布或发送接口提案。

@@ -83,18 +83,6 @@ class PluginTests(unittest.TestCase):
         self.module.QueueService.instances.clear()
         self.folder_context.__exit__(None,None,None)
 
-    def test_load_uses_host_provider_without_taking_ownership(self):
-        from test_connection_provider import Provider
-        provider = Provider()
-        provider.raw.update(origin='orca-native-queue', cloud_session_reused=True)
-        self.module.orca.host.queue_bridge_v1 = provider
-        self.page.on_load()
-        self.assertIs(self.page._connection.native, provider)
-        self.page._connection.refresh()
-        self.assertEqual(provider.refreshed, 1)
-        self.page.on_unload()
-        self.assertEqual(provider.closed, 0)
-
     def test_registered_top_tab(self):
         self.module.PrintQueuePlugin().register_capabilities()
         self.assertIn(self.module.PrintQueuePage, self.registrations)

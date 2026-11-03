@@ -1,21 +1,19 @@
-Orca Queue Connection 0.7.3 · Windows x64
+Orca Queue Connection Adapter 0.7.5 · Windows x64
 
-本包是独立连接安装工具，不是 Orca 市场插件。仅在首次安装或连接桥接需要更新时运行。
+配合队列 0.7.8，目标 Open Bamboo 0.2.45。
+本包保留用户当前兼容的 Open Bamboo 联网核心，不再安装固定旧版核心。
 
-1. 先结束或核对打印任务，保存工程，完整退出 OrcaSlicer。
-2. 把整个 ZIP 解压到普通文件夹，不要直接在压缩包里运行独立安装工具。
-3. 点击“检查”。检查不会创建或修改 Orca 文件。
-4. 点击“安装 / 更新”，核对显示的目标目录并确认。无需管理员权限，无需 Python 或 PowerShell。
-5. 重新打开 Orca，在首页登录 Bambu Cloud。队列的更新状态中应显示状态历史与完整 AMS 映射已启用。
+1. 在 Orca 的 Open Bamboo 页面完成“安装 / 更新联网库”；插件列表版本更新不等于核心已更新。
+2. 保存工程并完整退出 Orca。
+3. 完整解压本 ZIP，运行 OrcaQueueConnectionSetup.exe，选择实际 Orca 数据目录。
+4. 点击“检查”，再点击“安装 / 重新适配”，核对并确认文件更改。
+5. 重启 Orca，启用打印队列 0.7.8，继续使用首页 Bambu Cloud 登录。
+6. 先核对设备、AMS 槽位和实时状态，再由用户启动小型单盘测试。
 
-安装目标默认是当前用户的 OrcaSlicer 数据目录下 plugins。便携版可点“选择 Orca 数据目录”，选择实际数据目录。安装器不修改 orca_plugins、账号、队列或配置。
-运行独立安装工具会实际替换联网文件；请先阅读可见源码。若 Windows 安全策略阻止此工具，请由本机管理员审核处理；本项目不自动解除安全限制。
+Open Bamboo 更新可能覆盖联网入口，需要再次退出 Orca 后重新适配。无需重装队列，也无需独立云登录。
+备份在所选数据目录 queue-connection-backups；恢复前须退出 Orca。恢复会拒绝覆盖之后由其他程序更新的文件。
+完整兼容规则、源码构建方法与测试边界见“兼容适配器说明.txt”。
 
-备份与恢复
-原文件备份在 Orca 数据目录 queue-connection-backups 下，每次操作有 receipt.json。已有匹配组件时不重复写入或覆盖最近备份。
-需要恢复时先关闭 Orca，再打开独立工具并点“恢复原组件”。恢复前会核对当前文件和备份。被其他程序更新的文件不会覆盖；不要删除备份目录。
-不认识的联网组件或接口会拒绝覆盖，不要自行重命名 DLL。已有 live555.dll 和 BambuSource.dll 会保留。
-
-完整对应源码：本包 source-0.7.3.zip。联网 DLL 来自 Open Bamboo b14f880 及本项目队列桥接；原始 NOTICE 和许可已随包提供。本包与拓竹、OrcaSlicer 官方无隶属关系。
-
-独立工具尚未进行商业代码签名，Windows 可能显示未知发布者。请核对可信来源与 SHA256；若被安全策略阻止，不要关闭防护。工具提供可阅读源码和完整对应源码包。
+Offline checks passed; real printing, Handy coexistence and plate changes still require acceptance.
+Install / Update Library in Open Bamboo, exit Orca, extract this ZIP, run the installer, Check, Install / Readapt, then restart Orca.
+The installed compatible core is preserved. Updates may replace the wrapper; readapt afterwards. Account and queue data are not modified.

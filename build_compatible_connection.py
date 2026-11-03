@@ -14,7 +14,7 @@ import zipfile
 ROOT=Path(__file__).resolve().parent
 sys.path.insert(0,str(ROOT/'native'))
 from build_bridge import SOURCE,compiler_environment,exports,make_forwarders
-VERSION='0.7.4'
+VERSION='0.7.5'
 OUT=ROOT/'native/compatible-build'
 
 def main():
@@ -76,14 +76,14 @@ def main():
                  'ConnectionCompatibilityTests.cs','build_connection_installer.py','build_compatible_connection.py','兼容适配器说明.txt',
                  'native/build_bridge.py','native/queue_bridge.cpp','native/queue_commands.inc','native/queue_cache.cpp',
                  'native/queue_cache.hpp','native/queue_models.hpp','native/test_host.cpp','native/test_upstream.cpp',
-                 'native/test_compatible_bridges.py','native/public-build/bridges.json','native/prior-reviewed-bridges.json'):
+                 'native/test_compatible_bridges.py','native/verify_upstream_compatibility.py','native/public-build/bridges.json','native/prior-reviewed-bridges.json'):
         entries['source/'+name]=(ROOT/name).read_bytes()
     for key in manifest['series']:
         entries['source/native/compatible-build/'+key+'/forwarders.inc']=(OUT/key/'forwarders.inc').read_bytes()
     entries['SHA256SUMS.txt']='\n'.join(hashlib.sha256(b).hexdigest()+'  '+n for n,b in sorted(entries.items())).encode()
-    output=ROOT/'connection-dist'/f'Orca-Queue-Adapter-{VERSION}-Windows-x64.zip'
+    output=ROOT/'connection-dist'/f'Orca-Queue-Connection-{VERSION}-Windows-x64.zip'
     with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
-        for name,data in sorted(entries.items()):archive.writestr('Orca-Queue-Adapter-'+VERSION+'/'+name,data)
+        for name,data in sorted(entries.items()):archive.writestr('Orca-Queue-Connection-'+VERSION+'/'+name,data)
     print(output)
     print('SHA256',hashlib.sha256(output.read_bytes()).hexdigest())
 

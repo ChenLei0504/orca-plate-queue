@@ -69,7 +69,7 @@ class NativeQueueBridge:
         if len(attached)>1:
             raise RuntimeError('检测到多个联网实例，请正常退出并重启 Orca 后重试。')
         if not candidates:
-            raise RuntimeError('尚未加载队列连接组件。请退出 Orca，用独立连接组件安装器安装后重启。支持接口 02.03.00 / 02.08.01 / 02.08.04。')
+            raise RuntimeError('尚未加载队列桥接。若刚更新 Open Bamboo，请先完成其联网库更新，再退出 Orca，运行连接适配器重新适配并重启。')
         if not attached:
             if independent_seen:
                 raise RuntimeError('独立队列组件正在等待 Orca/Open Bamboo 提供连接接口；仅加载 DLL 不能建立连接。')
@@ -113,7 +113,7 @@ class NativeQueueBridge:
             except AttributeError:
                 supported=False
             if not supported:
-                raise RuntimeError('当前连接组件缺少完整耗材映射支持。请退出 Orca，用独立安装器更新连接组件并重启，再发送任务。')
+                raise RuntimeError('当前桥接缺少完整耗材映射支持。请退出 Orca，使用连接适配器重新适配并重启，再发送任务。')
         payload = json.dumps(request, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
         if len(payload) > 65536:
             raise ValueError('指令过大。')

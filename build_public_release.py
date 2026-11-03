@@ -24,6 +24,7 @@ SOURCES=['build_plugin.py','build_public_release.py','printer_models.py',
     'test_plugin.py','test_queue.py','test_refill.py','test_setup.py','test_public_release.py','preview_release.cjs','finalize_public_release.py','verification/capture_public_release.py',
     '.ui-test-tools/package.json','.ui-test-tools/package-lock.json',
     'release_info.py','local_paths.py','page_assets.py','page_preferences.py','page_messages.js','page_i18n.js','ConnectionInstaller.cs','ConnectionInstallerTests.cs','build_connection_installer.py','test_split_release.py','test_page_preferences.py','test_local_paths.py','test_initialization.py','vendor/open-bamboo-b14f880.tar.gz','发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt']
+SOURCES+=['native/verify_upstream_compatibility.py','docs/open-bamboo-0.2.45-compatibility.md']
 SOURCES+=['ConnectionCompatibility.cs','ConnectionCompatibilityTests.cs','build_compatible_connection.py','native/test_compatible_bridges.py','兼容适配器说明.txt']
 SOURCES+=['docs/standalone-cloud.md','test_connection_provider.py','native/owned_cloud.cpp','native/test_owned_backend.cpp','native/test_owned_cloud.py','native/public-build/02.08.04/forwarders.inc']
 SOURCES+=['docs/provider-contract.md','native/queue_provider_api.h','native/queue_sidecar.cpp','native/build_sidecar.py','native/test_sidecar.cpp']
@@ -107,7 +108,66 @@ def wheel_bytes(package,license_text,notice):
     return archive_bytes(package)
 
 
-def main(upstream_wheel):
+def build_adapter_release(connection_zip):
+    """Package a queue-only release with the reviewed adapter, never an old core."""
+    data=connection_zip.read_bytes()
+    if sha(data)!=CONNECTION_SHA256:
+        raise ValueError('Connection adapter hash mismatch')
+    prefix='Orca-Queue-Connection-'+CONNECTION_VERSION+'/'
+    with zipfile.ZipFile(io.BytesIO(data)) as package:
+        manifest=json.loads(package.read(prefix+'components.json'))
+        if manifest['schema']!=2 or manifest['version']!=CONNECTION_VERSION:
+            raise ValueError('Expected current adapter-only manifest')
+        for name,row in manifest['files'].items():
+            if row['role']!='bridge' or sha(package.read(prefix+'bin/'+name))!=row['sha256']:
+                raise ValueError('Adapter payload mismatch: '+name)
+        binaries={n[len(prefix+'bin/'):] for n in package.namelist() if n.startswith(prefix+'bin/')}
+        if binaries!=set(manifest['files']):
+            raise ValueError('Unexpected bundled networking core')
+        license_text=package.read(prefix+'LICENSE')
+        adapter_notice=package.read(prefix+'NOTICE')
+    OUT.mkdir(exist_ok=True)
+    runpy.run_path(str(ROOT/'build_plugin.py'))
+    notice=('Orca Plate Queue '+QUEUE_VERSION+' — Open Bamboo compatibility preview\n'
+        'Queue and forwarding adapter: AGPL-3.0-or-later.\n'
+        'The queue wheel contains no native networking library or installer.\n'
+        'The adapter preserves the user-installed compatible Open Bamboo core; no core binary is bundled.\n'
+        'Original baseline source/notices and adapter changes are in the separate connection ZIP.\n'
+        'Independent community project; no official endorsement.\n').encode()
+    source={}
+    for name in SOURCES:
+        content=(ROOT/name).read_bytes()
+        if name=='swap_support.py':content=public_source(content.decode('utf8')).encode('utf8')
+        source['orca-queue/'+name]=content
+    source['orca-queue/LICENSE']=license_text
+    source['orca-queue/NOTICE']=notice+adapter_notice
+    source['orca-queue/BUILD.txt']=(
+        'Queue-only build: place the reviewed adapter ZIP in connection-dist/, then run python build_public_release.py.\n'
+        'Adapter build: follow the source-baseline and source/ instructions in the connection ZIP.\n'
+        'Run python build_plugin.py, python -m unittest discover -q and node test_page.cjs.\n').encode()
+    artifacts={WHEEL_NAME:wheel_bytes(runtime_entries(),license_text,notice),
+        connection_zip.name:data, 'source-'+QUEUE_VERSION+'.zip':archive_bytes(source),
+        'LICENSE':license_text,'NOTICE':notice}
+    for name in ('发布版说明.txt','公开测试清单.txt','连接组件安装说明.txt','兼容适配器说明.txt'):
+        artifacts[name]=(ROOT/name).read_bytes()
+    for name,content in artifacts.items():(OUT/name).write_bytes(content)
+    summary=dict(version=QUEUE_VERSION,build_id=QUEUE_BUILD_ID,release_channel='local-compatibility-preview',
+        platform='windows-x64',tested_host='OrcaSlicer 2.5.0-rc',
+        target_open_bamboo='0.2.45',target_source_revision='32e31a3f0985ebf481ae738290a7482b92d3072f',
+        adapter_source_baseline='b14f880',bundled_networking_core=False,publicly_published=False,
+        real_printer_acceptance='pending',connection_version=CONNECTION_VERSION,
+        connection_download_url=CONNECTION_DOWNLOAD_URL,files={n:sha(b) for n,b in artifacts.items()})
+    (OUT/'manifest.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf8')
+    print('Prepared adapter-only compatibility release: '+str(OUT))
+
+
+def main(upstream_wheel=None):
+    adapter=ROOT/'connection-dist'/('Orca-Queue-Connection-'+CONNECTION_VERSION+'-Windows-x64.zip')
+    if adapter.is_file():
+        with zipfile.ZipFile(adapter) as archive:
+            entry='Orca-Queue-Connection-'+CONNECTION_VERSION+'/components.json'
+            if json.loads(archive.read(entry)).get('schema')==2:
+                return build_adapter_release(adapter)
     OUT.mkdir(exist_ok=True)
     runpy.run_path(str(ROOT/'build_plugin.py'))
     native=ROOT/'native/public-build'
@@ -205,4 +265,4 @@ def main(upstream_wheel):
     print('Prepared split release: '+str(OUT))
 
 
-if __name__=='__main__':main(Path(sys.argv[1]))
+if __name__=='__main__':main(Path(sys.argv[1]) if len(sys.argv)>1 else None)

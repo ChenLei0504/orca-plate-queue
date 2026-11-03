@@ -61,16 +61,19 @@ class PublicReleaseTests(unittest.TestCase):
             prefix='Orca-Queue-Connection-'+CONNECTION_VERSION+'/'
             self.assertEqual(hashlib.sha256(INSTALLER.read_bytes()).hexdigest(),CONNECTION_SHA256)
             manifest=json.loads(archive.read(prefix+'components.json'))
-            self.assertEqual(set(manifest['series']),{'02.03.00','02.08.01','02.08.04'})
+            self.assertEqual(set(manifest['series']),{'02.03.00','02.08.01','02.08.04','default'})
+            self.assertEqual(manifest['schema'],2)
+            self.assertTrue(all(row['role']=='bridge' for row in manifest['files'].values()))
+            self.assertEqual({n[len(prefix+'bin/'):] for n in archive.namelist() if n.startswith(prefix+'bin/')},set(manifest['files']))
             for name,row in manifest['files'].items():
                 data=archive.read(prefix+'bin/'+name)
                 self.assertEqual(hashlib.sha256(data).hexdigest(),row['sha256']);self.assertEqual(data[:2],b'MZ')
                 if row['role']=='bridge':self.assertIn(b'obn_queue_material_revision_v1\0',data)
             self.assertIn(prefix+'OrcaQueueConnectionSetup.exe',archive.namelist())
-            self.assertIn(prefix+'ConnectionInstaller.cs',archive.namelist())
-            self.assertIn('not a clean-room',archive.read(prefix+'NOTICE').decode())
+            self.assertIn(prefix+'source/ConnectionInstaller.cs',archive.namelist())
+            self.assertIn('No Open Bamboo networking core',archive.read(prefix+'NOTICE').decode())
             self.assertFalse(any(n.endswith('.ps1') for n in archive.namelist()))
-            with zipfile.ZipFile(io.BytesIO(archive.read(prefix+'source-'+CONNECTION_VERSION+'.zip'))) as source:
+            with zipfile.ZipFile(io.BytesIO(archive.read(prefix+'source-baseline-0.7.3.zip'))) as source:
                 for required in ('native/queue_bridge.cpp','native/queue_commands.inc','ConnectionInstaller.cs','build_connection_installer.py','ConnectionInstallerTests.cs','vendor/open-bamboo-b14f880.tar.gz','BUILD.txt','LICENSE'):
                     self.assertIn('orca-queue/'+required,source.namelist())
 

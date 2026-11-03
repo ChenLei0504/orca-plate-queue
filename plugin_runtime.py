@@ -73,7 +73,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
         self._error = ''
         self._last_export = ''
         self._messages = []
-        self._connection = PrinterConnection(None if OWNED_CLOUD else orca.host)
+        self._connection = PrinterConnection(None)
         try:
             self._storage = str(orca.host.plugin.storage())
             self._preferences = PagePreferences(self._storage)

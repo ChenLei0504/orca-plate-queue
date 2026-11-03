@@ -10,7 +10,7 @@ from test_queue import temporary_directory
 
 
 def native_snapshot():
-    return dict(protocol=1, origin='orca-native-queue', cloud_session_reused=True, attached=True,
+    return dict(protocol=1, origin='orca-native-queue', cloud_session_reused=True,
                 devices=[dict(id='test-a1', name='测试 A1', model='N2S', online=True,
                               cloud_connected=True, nozzle=.4, age_ms=0,
                               supported_options=['bed_leveling','flow_calibration','timelapse'], slots=[
@@ -34,7 +34,7 @@ class SetupTests(unittest.TestCase):
         self.folder=self.folder_context.__enter__()
         self.module.orca.host=types.SimpleNamespace(plugin=types.SimpleNamespace(storage=lambda:Path(self.folder)/'private'))
         self.raw = native_snapshot()
-        provider = types.SimpleNamespace(snapshot=lambda: copy.deepcopy(self.raw), refresh=lambda: 0, command=lambda request: 0)
+        provider = types.SimpleNamespace(snapshot=lambda: copy.deepcopy(self.raw))
         self.host = types.SimpleNamespace(queue_bridge_v1=provider)
         self.connection = self.module.PrinterConnection(self.host)
         self.asset = dict(printer='N2S', nozzle='0.4', filaments=[

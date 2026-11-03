@@ -219,7 +219,7 @@ class NativeDiscoveryTests(unittest.TestCase):
             self.discover([('bambu_networking_02.03.00.dll',False)])
 
     def test_no_matching_module_never_loads_a_new_library(self):
-        with self.assertRaisesRegex(RuntimeError,'独立连接组件安装器'):self.discover([])
+        with self.assertRaisesRegex(RuntimeError,'连接适配器重新适配'):self.discover([])
 
 
 if __name__=='__main__':unittest.main()

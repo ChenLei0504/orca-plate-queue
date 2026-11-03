@@ -1,5 +1,5 @@
 /* Local Orca page bridge. Official browser sign-in only; no credentials or HTTP file uploads in this page. */
-const PAGE_BUILD_ID='20261102.5';
+const PAGE_BUILD_ID='20261103.8';
 const I18n=window.QueueI18n,tr=(key,params)=>I18n.tr(key,params),message=value=>I18n.message(value);
 I18n.initialize(document);
 let latestReply=null,connection={available:false,devices:[]},setup={},swapSettings={},transitions=[];
@@ -44,9 +44,9 @@ function renderComponents(reply){
     return;
   }
   const connected=reply?.connection?.available===true;
-  $('componentSummary').textContent=connected?tr('已复用 Orca 当前连接组件与 Bambu Cloud 登录会话。'):tr('尚未连接。首次使用请单独安装连接组件。');
+  $('componentSummary').textContent=connected?tr('已复用 Orca 当前连接组件与 Bambu Cloud 登录会话。'):tr('尚未连接。请安装连接适配器；更新 Open Bamboo 后可能需要重新适配。');
   $('componentSeries').textContent=tr('支持 Windows x64 · 接口 02.03.00 / 02.08.01 / 02.08.04');
-  $('componentNote').textContent=tr('队列插件只使用 Orca 已加载的连接组件，不安装、替换或恢复联网文件。连接组件需要更新时，请退出 Orca 后使用独立安装器。');
+  $('componentNote').textContent=tr('队列只使用 Orca 已加载的桥接。适配器保留现有联网核心并备份入口；不会自动更新或降级 Open Bamboo。');
 }
 function basename(path){return String(path||'').split(/[\\/]/).pop()||''}
 function validColor(value){return /^#[\da-f]{6}([\da-f]{2})?$/i.test(value||'')}

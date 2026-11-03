@@ -1,15 +1,16 @@
-Orca 队列兼容适配器 0.7.4 · Windows x64 · 验证版
+Orca 队列兼容适配器 0.7.5 · Windows x64 · 验证版
 
 用途
 适用于已安装 Open Bamboo 的用户。队列插件继续使用现有版本，本工具改进连接组件的安装方式。
 本包只带队列桥接，不带固定版本 Open Bamboo 联网核心，不会把用户的新核心换成旧版。
 
 安装步骤
-1. 结束打印、保存工程，完整退出 Orca。
-2. 将整个 ZIP 解压到普通目录，运行 OrcaQueueConnectionSetup.exe。
-3. 选择实际 Orca 数据目录，点“检查”。默认目标为该目录下 plugins。
-4. 检查通过后，点“安装 / 重新适配”，核对文件列表并确认。
-5. 重开 Orca，检查队列的设备、AMS 和任务状态，再进行看守下的单盘测试。
+1. 先在 Orca 的 Open Bamboo 页面点击安装 / 更新联网库。插件列表版本更新不等于联网库已更新。
+2. 结束打印、保存工程，完整退出 Orca。
+3. 将整个 ZIP 解压到普通目录，运行 OrcaQueueConnectionSetup.exe。
+4. 选择实际 Orca 数据目录，点“检查”。默认目标为该目录下 plugins。
+5. 检查通过后，点“安装 / 重新适配”，核对文件列表并确认。
+6. 重开 Orca，检查队列的设备、AMS 和任务状态，再进行看守下的单盘测试。
 更新 Open Bamboo 后，如桥接入口被覆盖，再运行本工具重新适配。
 本工具不常驻，不在打印期间自动更换 DLL，也不修改 Open Bamboo 插件源码。
 
@@ -37,7 +38,9 @@ Open Bamboo 页面可能因入口文件哈希与其原包不同而显示组件�
 范围与验证
 本轮改善 Open Bamboo 版本兼容和重适配，不新增局域网直连、独立云端登录或 macOS/Linux 支持。
 程序测试涵盖四个入口、新核心保留、重复安装、连续及部分更新、旧版迁移、适配器升级、确认后文件变化、失败回滚、恢复及不兼容拒绝。
-已用上游仓库 51d292d2 / NOTICE 标注的 c5f1592 Windows 文件执行静态适配与恢复，核心内容保持不变。
+本次目标为 Open Bamboo 0.2.45，NOTICE 标注源码 32e31a3f0985ebf481ae738290a7482b92d3072f。
+已核对公开 ABI 头文件和三个接口系列的导出函数签名，均与桥接基线一致。静态适配测试使用本机 0.2.45 插件包原文件，核验复制与恢复逐字节不变。
+0.2.45 新增的 cloud_for_makerworld_only / lan_only 配置会限制自定义文件云打印。当前队列仍走云打印，请在 Open Bamboo 支持的配置中使用 cloud_only 或 try_lan_first；本工具不会擅自更改配置。
 桥接执行测试使用虚拟 SDK；未执行真实联网库、未发送打印机指令。实机 AMS、打印完成、跳过及换盘仍需看守验证。
 
 构建
@@ -50,8 +53,8 @@ python build_compatible_connection.py --package-only
 
 English
 Adapter-only Windows x64 preview. It preserves the user's existing compatible Open Bamboo core verbatim, then installs a matching queue forwarding wrapper.
-Close Orca, extract the whole ZIP, select the actual Orca data folder, run Check, then Install / Readapt. Restart Orca afterwards.
+First use Install / Update Library in Open Bamboo; updating the plugin alone may leave the old library in place. Close Orca, extract the whole ZIP, select the actual Orca data folder, run Check, then Install / Readapt. Restart Orca afterwards.
 Open Bamboo updates may replace the wrapper entry point; readapt after closing Orca. This tool does not watch or rewrite libraries while Orca is running.
 Compatibility uses PE architecture, upstream markers, declared ABI and the exact export set, not a per-release core hash allowlist. Static inspection cannot prove C++ parameter-layout compatibility in every future release.
 Backups and a reversible receipt are retained. Account, queue and camera files are untouched. No new LAN transport or cloud login is introduced in this release.
-Current upstream binary checks and fake-SDK tests passed. Real printer operation still requires supervised validation.
+Target: Open Bamboo 0.2.45, native source 32e31a3. Its ABI headers and exported signatures match the reviewed baseline. Offline binary checks and fake-SDK tests are recorded separately from real-device acceptance. Real printer operation still requires supervised validation.

@@ -59,7 +59,8 @@ public interface IComponentFiles {
 }
 public sealed class ComponentFiles : IComponentFiles {
     public bool OrcaRunning() {
-        var processes = Process.GetProcessesByName("orca-slicer");
+        var processes = new [] { "orca-slicer", "OrcaSlicer" }
+            .SelectMany(name => Process.GetProcessesByName(name)).ToArray();
         try { return processes.Length > 0; }
         finally { foreach (var p in processes) p.Dispose(); }
     }
@@ -271,14 +272,14 @@ public sealed class ConnectionInstallerForm : Form {
     readonly TextBox target = new TextBox(), status = new TextBox();
     readonly Button check = new Button(), install = new Button(), restore = new Button();
     public ConnectionInstallerForm() {
-        Text = "Orca 队列连接适配器 · 0.7.4"; Width = 760; Height = 480; MinimumSize = new System.Drawing.Size(680, 400);
+        Text = "Orca 队列连接适配器 · 0.7.5"; Width = 760; Height = 480; MinimumSize = new System.Drawing.Size(680, 400);
         Font = new System.Drawing.Font("Microsoft YaHei UI", 10); StartPosition = FormStartPosition.CenterScreen;
         var label = new Label { Text = "先保存工程并退出 Orca。适配前会备份联网入口；兼容模式保留现有 Open Bamboo 核心。", Dock = DockStyle.Top, Height = 64, Padding = new Padding(14) };
         target.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OrcaSlicer"); target.Dock = DockStyle.Top;
         var choose = new Button { Text = "选择 Orca 数据目录（便携版）", AutoSize = true };
         choose.Click += delegate { using (var picker = new FolderBrowserDialog()) { picker.Description = "选择 OrcaSlicer 数据目录，不是程序安装目录"; if (picker.ShowDialog(this) == DialogResult.OK) target.Text = picker.SelectedPath; } };
         status.Multiline = true; status.ReadOnly = true; status.ScrollBars = ScrollBars.Vertical; status.Dock = DockStyle.Fill;
-        status.Text = "建议先点“检查”。请完整解压并保留同目录 bin、components.json 和源码包。\r\n此工具不下载文件、不运行其他程序，也不连接打印机。";
+        status.Text = "建议先点“检查”。请完整解压并保留同目录 bin、components.json 和源码包。\r\n更新 Open Bamboo 后，请先在其页面安装新版联网库，退出 Orca 后再运行本工具。此工具不下载文件、不连接打印机。";
         var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 56, Padding = new Padding(10), FlowDirection = FlowDirection.LeftToRight };
         check.Text = "检查"; install.Text = "安装 / 重新适配"; restore.Text = "恢复原组件";
         foreach (var button in new [] { check, install, restore }) { button.AutoSize = true; actions.Controls.Add(button); }

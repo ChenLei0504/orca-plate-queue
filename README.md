@@ -14,8 +14,8 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 | Component / 组件 | Current source version / 当前源码版本 |
 | --- | --- |
-| Queue plugin / 队列插件 | **0.7.8** · build **20261102.5** |
-| Connection component / 独立连接组件 | **0.7.3** |
+| Queue plugin / 队列插件 | **0.7.8** · build **20261103.8** |
+| Connection adapter / 连接适配器 | **0.7.5** · Open Bamboo **0.2.45** compatibility preview |
 | Platform / 平台 | Windows x64 · OrcaSlicer **2.5.0 beta** |
 
 > 公开测试阶段。上表是仓库源码版本，下载以 Releases 中实际发布的附件为准。电脑和 Orca 必须持续运行；队列在本机执行。
@@ -28,13 +28,13 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 <a id="zh-cn"></a>
 
-## 独立云连接测试版 / Standalone cloud preview
+## 当前开发方向 / Current development direction
 
-已新增 **0.8.0a1** 的独立构建入口：一个 wheel 内置连接组件，在插件内验证码登录，无需单独安装 Open Bamboo 或连接组件 EXE。保留 Handy 是首版验收要求，真实云连接和连续打印仍待验证，尚未发布到市场。
+回到 **0.7.8 队列 + Open Bamboo 连接适配器**。独立云连接 0.8.0a1 和拟议宿主接口暂停作为安装方案；它们尚未完成真实连接验收。
 
-The **0.8.0a1** standalone preview bundles its private connection process in one wheel and provides verification-code sign-in. No separate Open Bamboo plugin or installer is needed. Real cloud login, concurrent Handy access and continuous printing still require acceptance tests.
+本地兼容包目标为 Open Bamboo **0.2.45**。ABI / AMS 参数结构、四个桥接入口及实际 DLL 副本的安装恢复已完成离线验证；**实机打印、Handy 同时在线和换盘验收仍待完成**。本地构建不等于已发布，请以 Releases 实际附件为准。
 
-构建、安装、回退及测试边界见 [独立云连接说明 / Standalone cloud notes](docs/standalone-cloud.md)。以下为现有 0.7.8 分离安装版说明。
+Development returns to **queue 0.7.8 + an Open Bamboo adapter**. The standalone-cloud preview and proposed host API are not installation recommendations. Open Bamboo **0.2.45** has passed offline ABI, forwarding and installation/restore checks; real printing, concurrent Handy access and plate changes still require acceptance. A local build is not a published release.
 
 ## 中文说明
 
@@ -42,7 +42,7 @@ The **0.8.0a1** standalone preview bundles its private connection process in one
 
 Orca Plate Queue 将多个**单盘切片 3MF**排成队列，每台打印机独立保存任务、耗材映射和换板方式。任务按盘发送，保留原始切片文件和零件标记，不通过合盘实现连续打印。
 
-它分成两个部分：**队列插件**负责页面和任务调度；**独立连接组件**让队列复用 Orca 已建立的联网会话。连接组件只在首次安装或需要更新时单独运行。
+它分成两个部分：**队列插件**负责页面和任务调度；**独立连接组件**让队列复用 Orca 已建立的联网会话。更新 Open Bamboo 若覆盖了桥接，需要退出 Orca 后重新运行连接适配器。
 
 ### 界面语言
 
@@ -85,11 +85,11 @@ Orca Plate Queue 将多个**单盘切片 3MF**排成队列，每台打印机独�
 | 文件 | 用途 |
 | --- | --- |
 | `Orca_Plate_Queue_win_x86_64.whl` | 在 Orca 插件窗口安装的队列插件，**不要使用 pip 安装**。 |
-| `Orca-Queue-Connection-0.7.3-Windows-x64.zip` | 独立连接组件，首次使用需要安装。 |
+| `Orca-Queue-Connection-0.7.5-Windows-x64.zip` | 独立连接组件，首次使用需要安装。 |
 | `source-<版本>.zip` | 对应版本的完整工程源码及构建、测试脚本。 |
 | `SHA256SUMS.txt` | 发布附件的 SHA256 校验值。 |
 
-连接组件可从 **[0.7.3 发布页](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.3)** 获取，也可使用 **[固定下载链接](https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.3/Orca-Queue-Connection-0.7.3-Windows-x64.zip)**。队列版本与连接组件版本独立，数字不同是正常的。
+连接适配器 0.7.5 当前为本地验证包。发布后会附在 [0.7.8 发布页](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.8)，下载前请确认附件确实存在。队列与适配器版本独立。
 
 另有正在验证的[兼容适配器方案](兼容适配器说明.txt)：按 ABI 和导出函数检查，原样保留用户安装的 Open Bamboo 核心；更新后可重新适配。本地验证包尚未替换云端默认下载，不表示已完成实机验收。
 
@@ -97,13 +97,13 @@ Orca Plate Queue 将多个**单盘切片 3MF**排成队列，每台打印机独�
 
 1. 在 Orca 中打开 **文件 → 插件**，使用“安装插件”选择 `.whl`，并激活队列插件。若使用已发布的 Orca Cloud 订阅版，则在同一 Orca Cloud 账号下刷新并激活。
 2. 确认 Orca 已启用打印机联网功能。保存工程，**完整退出 Orca**。
-3. 将独立连接 ZIP **完整解压**，打开 `OrcaQueueConnectionSetup.exe`。先点“检查”，核对 Orca 数据目录，再点“安装 / 更新”。便携版请选实际使用的数据目录。
+3. 先在 Open Bamboo 页面安装 / 更新联网库，再退出 Orca。将独立连接 ZIP **完整解压**，打开 `OrcaQueueConnectionSetup.exe`。先点“检查”，核对 Orca 数据目录，再点“安装 / 重新适配”。便携版请选实际使用的数据目录。
 4. 重新打开 Orca，在首页登录 **Bambu Cloud**，确认原“设备”页能正常连接打印机。
 5. 打开“打印队列”，选择打印机，核对温度、AMS / 外挂状态，再导入任务。
 
 **两个账号用途不同：** Orca Cloud 用于插件市场和订阅；Bambu Cloud 用于打印机连接。只登录 Orca Cloud 不会让队列看到打印机。
 
-已有 Open Bamboo 用户可保留原插件。**普通 Open Bamboo 不包含本项目的队列桥接**，首次仍需安装独立连接组件。已安装匹配 0.7.3 桥接的用户无需重复安装。
+已有 Open Bamboo 用户可保留原插件。**普通 Open Bamboo 不包含本项目的队列桥接**，首次仍需安装独立连接组件。更新 Open Bamboo 后如桥接被覆盖，需要重新适配。
 
 独立工具无需另装 Python 或 PowerShell；安装时会备份并替换清单中的联网文件。工具尚未进行商业代码签名；遇到系统策略拦截时应审核来源和校验值，不要关闭系统防护。详见[连接组件安装说明](连接组件安装说明.txt)。
 
@@ -181,7 +181,7 @@ flowchart LR
 
 ### 更新与常见问题
 
-更新到 0.7.8 后，应看到版本 **0.7.8**、构建 **20261102.5**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
+更新到 0.7.8 后，应看到版本 **0.7.8**、构建 **20261103.8**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
 
 | 现象 | 检查方式 |
 | --- | --- |
@@ -192,7 +192,7 @@ flowchart LR
 | 文件准备好了但不能开始 | 打开开始前检查，查看设备状态、HMS / 打印错误、喷嘴、耗材映射与换板配置。 |
 | 打印完成却等待核对 | 核对 Handy / 屏幕中的实际任务和状态，再按恢复区域提示处理；不要重复发送原任务。 |
 | 允许文件权限后仍提示队列初始化失败 | 更新到 0.7.8。若仍出现权限提示，允许后点击页面“重新初始化”；无需删除队列数据。 |
-| 添加换盘文件时 `.part` 报 Errno 2，存储路径很长 | 更新到 0.7.8 / 20261102.5。此构建修复未启用长路径感知的宿主中的缓存创建、校验和数据库访问。 |
+| 添加换盘文件时 `.part` 报 Errno 2，存储路径很长 | 更新到 0.7.8 / 20261103.8。此构建修复未启用长路径感知的宿主中的缓存创建、校验和数据库访问。 |
 | 路径编码错误 `-7` | 上游 SDK 无法用系统代码页表示当前缓存路径；检查数据目录字符和系统区域环境。 |
 | 更新后看不到原队列 | 本地插件与云订阅可能使用不同私有目录；本版不自动合并，避免同时激活两套队列。 |
 
@@ -245,7 +245,7 @@ node test_page.cjs
 
 Orca Plate Queue manages **independent queues for A1 and P1S printers** inside OrcaSlicer. Each printer keeps its own jobs, filament mappings and plate-handling settings. Jobs are sent as original, individually sliced plates; continuous printing does not rely on merging multiple plates into one file.
 
-The project has two components: the **queue plugin**, which provides the UI and scheduling, and a **standalone connection component**, which lets the queue reuse Orca's existing networking session. The connection installer is needed only for initial installation or a connection-component update.
+The project has two components: the **queue plugin**, which provides the UI and scheduling, and a **standalone connection component**, which lets the queue reuse Orca's existing networking session. Run the adapter again after an Open Bamboo update replaces the bridge entry point.
 
 ### Interface language
 
@@ -289,11 +289,11 @@ Use the **[Releases page](https://github.com/ChenLei0504/orca-plate-queue/releas
 | Artifact | Purpose |
 | --- | --- |
 | `Orca_Plate_Queue_win_x86_64.whl` | Queue plugin to install through Orca's plugin manager. **Do not install it with pip.** |
-| `Orca-Queue-Connection-0.7.3-Windows-x64.zip` | Standalone connection installer for initial setup. |
+| `Orca-Queue-Connection-0.7.5-Windows-x64.zip` | Standalone connection installer for initial setup. |
 | `source-<version>.zip` | Corresponding complete project source, build scripts and tests. |
 | `SHA256SUMS.txt` | Artifact SHA256 checksums. |
 
-The pinned connection component is available from the **[0.7.3 release](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.3)** or its **[direct download](https://github.com/ChenLei0504/orca-plate-queue/releases/download/v0.7.3/Orca-Queue-Connection-0.7.3-Windows-x64.zip)**. Queue and connection versions are independent.
+Connection adapter **0.7.5** is currently a local compatibility candidate. Once published it will be attached to the [0.7.8 release](https://github.com/ChenLei0504/orca-plate-queue/releases/tag/v0.7.8); confirm the asset exists before downloading. Queue and adapter version numbers are independent.
 
 An [adapter-only compatibility preview](兼容适配器说明.txt) preserves the installed Open Bamboo core and validates its ABI/export contract. It supports readaptation after updates. The local preview has not replaced the default cloud download and has not completed real-printer acceptance.
 
@@ -301,13 +301,13 @@ The long-term [independent provider API](docs/provider-contract.md) has a local 
 
 1. In Orca, open **File → Plugins**, install the `.whl` and activate it. For an available Orca Cloud subscription release, refresh and activate it using the same Orca Cloud account.
 2. Enable Orca's printer networking feature. Save your projects and **fully exit Orca**.
-3. Extract the entire connection ZIP. Open `OrcaQueueConnectionSetup.exe`, click **Check**, verify the Orca data directory, then choose **Install / Update**. Portable installations must select their actual data directory.
+3. Install / Update Library in Open Bamboo, then exit Orca. Extract the entire connection ZIP. Open `OrcaQueueConnectionSetup.exe`, click **Check**, verify the Orca data directory, then choose **Install / Readapt**. Portable installations must select their actual data directory.
 4. Restart Orca and sign in to **Bambu Cloud** on its home page. Confirm that Orca's normal device view can connect to the printer.
 5. Open the queue page, select the printer, and check temperatures and filament slots before adding jobs.
 
 **Orca Cloud is for the plugin marketplace; Bambu Cloud is for printers.** Signing in only to Orca Cloud will not make printers appear.
 
-Existing Open Bamboo users can keep that plugin. Ordinary Open Bamboo does **not** include this project's queue bridge, so the standalone connection component is still needed initially. Users with the matching 0.7.3 bridge do not need to reinstall it.
+Existing Open Bamboo users can keep that plugin. Ordinary Open Bamboo does **not** include this project's queue bridge, so the standalone connection component is still needed initially. Readapt after an Open Bamboo update replaces the queue bridge.
 
 The installer backs up and replaces the networking files listed in its manifest. It does not require a separate Python or PowerShell installation. It is unsigned; review its source and checksums and follow your system's security policy instead of disabling protection. See the [connection installer notes](连接组件安装说明.txt).
 
@@ -355,7 +355,7 @@ Other printers keep their independent queues. Restart, disconnection, unknown ta
 
 ### Updates and troubleshooting
 
-After installing 0.7.8, fully exit and restart Orca. The page should show **0.7.8 / 20261102.5**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
+After installing 0.7.8, fully exit and restart Orca. The page should show **0.7.8 / 20261103.8**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
 
 | Symptom | What to check |
 | --- | --- |
@@ -366,7 +366,7 @@ After installing 0.7.8, fully exit and restart Orca. The page should show **0.7.
 | Preflight blocks the start | Check state freshness, HMS / print errors, nozzle, mappings and plate-handling settings. |
 | A finished print waits for verification | Check the actual task in Handy/on the printer, then use recovery controls. Do not resend the original task. |
 | Initialization fails after allowing file access | Update to 0.7.8. If Orca requests access, allow it and click Retry initialization. Queue data does not need to be deleted. |
-| Errno 2 for a long `.part` path while adding a swap file | Update to 0.7.8 / 20261102.5. It fixes cache creation, validation and database access in hosts without long-path awareness. |
+| Errno 2 for a long `.part` path while adding a swap file | Update to 0.7.8 / 20261103.8. It fixes cache creation, validation and database access in hosts without long-path awareness. |
 | Path-encoding error `-7` | The upstream SDK cannot represent the cache path in the system code page; check directory characters and locale settings. |
 | A queue appears missing after changing installation type | Local and cloud-installed plugins may have separate private storage. They are not merged automatically; avoid activating both copies. |
 
@@ -394,4 +394,4 @@ Reproduce both Chinese and English documentation screenshots with `node docs/ren
 
 When opening an [issue](https://github.com/ChenLei0504/orca-plate-queue/issues), include the plugin version/build, Orca and Windows versions, printer/interface versions, reproduction steps and sanitized screenshots. Remove access codes, tokens, accounts, printer IDs and private paths.
 
-Licensed under **[AGPL-3.0-or-later](LICENSE)**. The connection component includes [Open Bamboo Networking](https://github.com/persano/open-bamboo-networking/tree/b14f880) and this project's bridge modifications, with original notices and corresponding source in the connection ZIP. Preserve [NOTICE](NOTICE) and the included licenses when redistributing. This is an independent community project with no official endorsement by Bambu Lab or OrcaSlicer.
+Licensed under **[AGPL-3.0-or-later](LICENSE)**. The adapter uses ABI declarations and JSON code from [Open Bamboo Networking](https://github.com/persano/open-bamboo-networking/tree/b14f880), with notices and corresponding source in the connection ZIP. It does not bundle a networking core; the compatible user-installed core is preserved. Preserve [NOTICE](NOTICE) and the included licenses when redistributing. This is an independent community project with no official endorsement by Bambu Lab or OrcaSlicer.
