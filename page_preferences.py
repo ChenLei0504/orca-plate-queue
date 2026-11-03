@@ -28,7 +28,7 @@ class PagePreferences:
         if self.language == language:
             return
         fs_path(self.path.parent).mkdir(parents=True, exist_ok=True)
-        pending = self.path.with_name(self.path.name + '.pending-' + uuid.uuid4().hex)
+        pending = self.path.with_name(uuid.uuid4().hex + '.part')
         try:
             with fs_path(pending).open('w', encoding='utf-8') as stream:
                 json.dump({'language': language}, stream, ensure_ascii=False)

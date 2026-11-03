@@ -32,9 +32,9 @@ class LocalImports:
             if len(self.pending) >= 3:
                 raise ValueError('已有导入正在进行，请稍后再试。')
             token = uuid.uuid4().hex
-            folder = Path(self.storage()) / 'queue_uploads'
+            folder = Path(self.storage()) / 'u'
             fs_path(folder).mkdir(parents=True, exist_ok=True)
-            path = folder / ('queue-upload-' + token + '.part')
+            path = folder / (token + '.part')
             fs_path(path).write_bytes(b'')
             self.pending[token] = dict(path=path, size=size, received=0, seq=0,
                                        name=re.split(r'[\\/]', name)[-1], copies=copies, queue_id=data.get('queue_id'))

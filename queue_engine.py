@@ -21,11 +21,11 @@ class QueueService:
     ACTIVE = {'RUNNING', 'PREPARE', 'SLICING', 'PAUSE'}
     IDLE = {'IDLE', 'FINISH', 'FAILED'}
 
-    def __init__(self, storage, connection, inspect_model, inspect_swap, default_swap, start_worker=True, clock=time.time):
+    def __init__(self, storage, connection, inspect_model, inspect_swap, default_swap, start_worker=True, clock=time.time, asset_storage=None, asset_owner=None):
         self.root = canonical_path(storage)
         fs_path(self.root).mkdir(parents=True, exist_ok=True)
-        self.assets = self.root / 'assets'
-        fs_path(self.assets).mkdir(exist_ok=True)
+        self.assets = canonical_path(asset_storage) if asset_storage is not None else self.root / 'assets'
+        fs_path(self.assets).mkdir(parents=True, exist_ok=True)
         self._lease = fs_path(self.root / 'executor.lock').open('a+b')
         self._lease.seek(0)
         if os.name == 'nt':
@@ -42,6 +42,19 @@ class QueueService:
         self.fatal = ''
         self.db = None
         try:
+            if asset_storage is not None:
+                if not isinstance(asset_owner, str) or not re.fullmatch(r'[0-9a-f]{64}', asset_owner):
+                    raise ValueError('缓存所属队列标记无效。')
+                owner = fs_path(self.assets / 'owner')
+                if not owner.exists():
+                    if any(fs_path(self.assets).iterdir()):
+                        raise ValueError('缓存目录缺少所属队列标记，已停止使用。')
+                    with owner.open('x', encoding='ascii') as stream:
+                        stream.write(asset_owner)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                if owner.read_text(encoding='ascii') != asset_owner:
+                    raise ValueError('缓存目录属于另一条队列，已停止使用。')
             self.db = sqlite3.connect(str(fs_path(self.root / 'queue-v3.sqlite3')), check_same_thread=False)
             self.db.execute('PRAGMA journal_mode=WAL')
             self.db.execute('PRAGMA synchronous=FULL')
@@ -137,7 +150,11 @@ class QueueService:
     def freeze(self, info):
         """Keep immutable, content-addressed input; never re-open a user's file to print."""
         source = Path(info['path'])
-        target = self.assets / (info['sha256'] + '.3mf')
+        # Short filename, full SHA-256 still verified below before use or reuse.
+        target = self.assets / (info['sha256'][:32] + '.3mf')
+        legacy = self.assets / (info['sha256'] + '.3mf')
+        if fs_path(legacy).exists():
+            target = legacy
         if not fs_path(target).exists():
             pending = self.assets / (uuid.uuid4().hex + '.part')
             try:

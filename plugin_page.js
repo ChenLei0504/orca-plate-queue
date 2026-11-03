@@ -1,5 +1,5 @@
 /* Local Orca page bridge. Official browser sign-in only; no credentials or HTTP file uploads in this page. */
-const PAGE_BUILD_ID='20261103.10';
+const PAGE_BUILD_ID='20261103.12';
 const I18n=window.QueueI18n,tr=(key,params)=>I18n.tr(key,params),message=value=>I18n.message(value);
 I18n.initialize(document);
 let latestReply=null,connection={available:false,devices:[]},setup={},swapSettings={},transitions=[];

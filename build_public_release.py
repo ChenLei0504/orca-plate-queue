@@ -24,7 +24,7 @@ SOURCES=['build_plugin.py','build_public_release.py','printer_models.py',
     'test_plugin.py','test_queue.py','test_refill.py','test_setup.py','test_public_release.py','preview_release.cjs','finalize_public_release.py','verification/capture_public_release.py',
     '.ui-test-tools/package.json','.ui-test-tools/package-lock.json',
     'release_info.py','local_paths.py','page_assets.py','page_preferences.py','page_messages.js','page_i18n.js','ConnectionInstaller.cs','ConnectionInstallerTests.cs','build_connection_installer.py','test_split_release.py','test_page_preferences.py','test_local_paths.py','test_initialization.py','vendor/open-bamboo-b14f880.tar.gz','发布版说明.txt','发布页文案.txt','公开测试清单.txt','连接组件安装说明.txt']
-SOURCES+=['native/verify_upstream_compatibility.py','docs/open-bamboo-0.2.45-compatibility.md']
+SOURCES+=['test_cache_permissions.py','native/verify_upstream_compatibility.py','docs/open-bamboo-0.2.45-compatibility.md']
 SOURCES+=['ConnectionCompatibility.cs','ConnectionCompatibilityTests.cs','build_compatible_connection.py','native/test_compatible_bridges.py','兼容适配器说明.txt']
 SOURCES+=['docs/standalone-cloud.md','test_connection_provider.py','native/owned_cloud.cpp','native/test_owned_backend.cpp','native/test_owned_cloud.py','native/public-build/02.08.04/forwarders.inc']
 SOURCES+=['docs/provider-contract.md','native/queue_provider_api.h','native/queue_sidecar.cpp','native/build_sidecar.py','native/test_sidecar.cpp']

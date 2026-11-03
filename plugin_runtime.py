@@ -130,7 +130,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
             raise
         if display_name:
             raw = canonical_path(info['source_path'])
-            if raw.parent == canonical_path(Path(self._storage)/'queue_uploads') and re.fullmatch(r'queue-upload-[0-9a-f]{32}\.3mf', raw.name):
+            if raw.parent in (canonical_path(Path(self._storage)/'u'), canonical_path(Path(self._storage)/'queue_uploads')) and re.fullmatch(r'(?:queue-upload-)?[0-9a-f]{32}\.3mf', raw.name):
                 fs_path(raw).unlink(missing_ok=True)
         return f"已读取：{info['name']} × {copies}。请配置耗材后确认加入队列。"
 
@@ -189,7 +189,7 @@ class PrintQueuePage(orca.pages.PagesPluginCapabilityBase):
             return
         try:
             target=canonical_path(row['path'])
-            if target.parent==canonical_path(self._service.assets) and re.fullmatch(r'[0-9a-f]{64}\.3mf',target.name):
+            if target.parent in (canonical_path(self._service.assets), canonical_path(self._service.root / 'assets')) and re.fullmatch(r'(?:[0-9a-f]{32}|[0-9a-f]{64})\.3mf',target.name):
                 fs_path(target).unlink(missing_ok=True)
         except OSError:
             self._messages.append('任务已删除，但本地副本清理失败。')

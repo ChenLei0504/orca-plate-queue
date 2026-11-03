@@ -284,7 +284,7 @@ class PluginTests(unittest.TestCase):
             self.assertFalse(self.page.reply['success'])
             self.assertEqual(self.page._data['jobs'],[])
             self.page.on_message(dict(action='upload_abort',token=token))
-            self.assertFalse(list((Path(self.folder)/'private'/'queue_uploads').iterdir()))
+            self.assertFalse(list((Path(self.folder)/'private'/'u').iterdir()))
 
     def test_invalid_slice_upload_leaves_no_task_or_copy(self):
         with temporary_directory() as folder:
@@ -293,7 +293,7 @@ class PluginTests(unittest.TestCase):
             self.page.on_message(dict(action='upload_end',token=token))
             self.assertFalse(self.page.reply['success'])
             self.assertEqual(self.page._data['jobs'],[])
-            self.assertFalse(list((Path(self.folder)/'private'/'queue_uploads').iterdir()))
+            self.assertFalse(list((Path(self.folder)/'private'/'u').iterdir()))
 
     def test_upload_size_and_extension_bounds(self):
         for name,size in [('x.stl',100),('x.3mf',0),('x.3mf',100*1024*1024+1)]:
@@ -308,14 +308,14 @@ class PluginTests(unittest.TestCase):
             self.page.on_message(dict(action='upload_end',token=token))
             self.assertFalse(self.page.reply['success'])
             self.assertEqual(self.page._data['jobs'],[])
-            self.assertFalse(list((Path(self.folder)/'private'/'queue_uploads').iterdir()))
+            self.assertFalse(list((Path(self.folder)/'private'/'u').iterdir()))
             self.page._service._save=lambda:None
 
     def test_unload_cleans_incomplete_upload_only(self):
         with temporary_directory() as folder:
             self.storage(folder);self.begin_upload(b'abc')
             self.page.on_unload()
-            self.assertFalse(list((Path(self.folder)/'private'/'queue_uploads').iterdir()))
+            self.assertFalse(list((Path(self.folder)/'private'/'u').iterdir()))
 
     def test_drag_move_after_and_before(self):
         with temporary_directory() as folder:

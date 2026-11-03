@@ -575,7 +575,7 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(page._data['jobs'],[])
             draft=page._data['drafts'][0]
             self.assertEqual(draft['name'],'拖入测试.3mf')
-            self.assertFalse(list((Path(page._storage)/'queue_uploads').iterdir()))
+            self.assertFalse(list((Path(page._storage)/'u').iterdir()))
             page.on_message(dict(action='commit_import',id=draft['id'],settings=self.settings))
             self.assertTrue(page.reply['success'],page.reply)
             self.assertEqual([j['name'] for j in page._data['jobs']],['拖入测试.3mf']*2)

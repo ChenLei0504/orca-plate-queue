@@ -14,7 +14,7 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 
 | Component / 组件 | Current source version / 当前源码版本 |
 | --- | --- |
-| Queue plugin / 队列插件 | **0.7.10** · build **20261103.10** |
+| Queue plugin / 队列插件 | **0.7.12** · build **20261103.12** |
 | Connection adapter / 连接适配器 | **0.7.5** · Open Bamboo **0.2.45** compatibility preview |
 | Platform / 平台 | Windows x64 · OrcaSlicer **2.5.0 beta** |
 
@@ -27,6 +27,20 @@ An OrcaSlicer plugin for A1 / P1S queues, per-plate filament mapping, object ski
 *截图使用当前真实页面和合成演示数据，不包含真实账号、设备编号或打印记录。界面支持简体中文和英文，默认简体中文。 / Screenshots show the actual current UI with synthetic demo data, not real accounts, printer IDs or print records. The UI supports Simplified Chinese and English, with Simplified Chinese as the default.*
 
 <a id="zh-cn"></a>
+
+## 0.7.12 长路径复查 / Long-path follow-up
+
+进一步缩短新建打印机数据库目录、导入暂存文件、语言设置临时文件及模型/换盘缓存名称。文件名虽缩短，仍校验完整 SHA-256；不同打印机保持隔离。已有数据库（含 WAL 和执行锁）及任务路径不自动搬动，避免丢失或重复执行任务。
+
+已覆盖较长用户目录、上传完成/取消、语言保存、换盘与模型解析、缓存清理、旧队列重开，以及文件名碰撞拒绝。测试不连接打印机。旧文件仍保留原长路径；极深的 Orca 安装/私有目录和宿主的授权、卸载行为不由本插件控制，不能保证所有环境零授权弹窗。连接适配器仍为 0.7.5；适配器安装器的任意超长解压目录尚未验证，建议解压到短目录。
+
+New printer databases, upload staging, preference temporary files and model/swap cache names use shorter paths. Full SHA-256 verification and per-printer ownership remain enforced. Existing databases, WAL files, execution locks and task paths are not moved. Tests cover longer profile paths, import/cancel, preferences, parsing, cleanup, reload and digest-name collisions without contacting printers. Extremely deep host directories, legacy paths and Orca's audit/uninstall behavior remain host-dependent. Adapter 0.7.5 is unchanged; use a short extraction directory for its installer, whose arbitrary long-path behavior has not been verified.
+
+## 0.7.11 导入缓存修复 / Import cache fix
+
+云端安装的多机目录较长，旧布局会让随机临时文件进入 Windows 扩展路径形式，触发额外授权。新导入采用插件私有目录内的较短缓存布局，按打印机隔离并校验所属队列；现有数据库与任务路径不迁移。不会关闭权限审核或申请整盘访问。真实 Orca 的弹窗行为仍需安装后核对，请先等待正在执行的打印结束。
+
+New imports use shorter per-printer cache paths inside private plugin storage, avoiding extended-path prompts for the reported cloud-installed layout. Existing task paths stay unchanged, and cache ownership is checked. No audit enforcement is disabled or broad filesystem access requested. Verify actual prompts in Orca after updating once the current print finishes.
 
 ## 0.7.10 状态修复 / Status fix
 
@@ -187,7 +201,7 @@ flowchart LR
 
 ### 更新与常见问题
 
-更新到 0.7.10 后，应看到版本 **0.7.10**、构建 **20261103.10**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
+更新到 0.7.11 后，应看到版本 **0.7.12**、构建 **20261103.12**。ⓘ → 更新状态中可查看页面、队列服务、状态历史和 AMS 映射状态。更新插件后完整退出并重新打开 Orca，避免旧代码仍驻留内存。
 
 | 现象 | 检查方式 |
 | --- | --- |
@@ -361,7 +375,7 @@ Other printers keep their independent queues. Restart, disconnection, unknown ta
 
 ### Updates and troubleshooting
 
-After the active print ends, install 0.7.10 and restart Orca. The page should show **0.7.10 / 20261103.10**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
+After the active print ends, install 0.7.11 and restart Orca. The page should show **0.7.11 / 20261103.12**. The information panel checks the page build, running service, loaded state-history capability and AMS mapping separately.
 
 | Symptom | What to check |
 | --- | --- |

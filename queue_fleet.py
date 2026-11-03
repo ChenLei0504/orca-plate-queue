@@ -69,7 +69,7 @@ class QueueFleet:
             for device_id in ids:
                 if device_id in self.services:
                     continue
-                service = self._open(self._device_root(device_id))
+                service = self._open(self._device_root(device_id), device_id)
                 if service.data['device_id'] != device_id:
                     service.close()
                     raise ValueError('打印机队列目录与设备身份不符。')
@@ -82,10 +82,24 @@ class QueueFleet:
             raise
 
     def _device_root(self, device_id):
-        return self.root / 'printers' / hashlib.sha256(device_id.encode('utf8')).hexdigest()
+        identity = hashlib.sha256(device_id.encode('utf8')).hexdigest()
+        legacy = self.root / 'printers' / identity
+        # Never move an existing database (including its WAL or execution lock).
+        if fs_path(legacy).exists():
+            return legacy
+        return self.root / 'p' / identity[:16]
 
-    def _open(self, folder):
-        return self._factory(folder, self.connection, self._inspect_model, self._inspect_swap, self._default)
+    def _open(self, folder, device_id=None):
+        options = {}
+        if folder != self.root:
+            # Keep random temporary names under Orca's ordinary private paths.
+            # A full ownership marker prevents truncated-directory collisions.
+            identity = hashlib.sha256(device_id.encode('utf8')).hexdigest()
+            assets = canonical_path(self.root / 'a' / identity[:16])
+            if not assets.is_relative_to(self.root):
+                raise ValueError('缓存目录超出本插件存储范围。')
+            options = dict(asset_storage=assets, asset_owner=identity)
+        return self._factory(folder, self.connection, self._inspect_model, self._inspect_swap, self._default, **options)
 
     def _save_index(self, selected):
         payload = dict(devices=[i for i in self.services if i], selected=selected)
@@ -115,7 +129,7 @@ class QueueFleet:
                     service.commit(lambda:bind_queue(service.data, device_id, connection))
                     del self.services['']
                 else:
-                    service = self._open(self._device_root(device_id))
+                    service = self._open(self._device_root(device_id), device_id)
                     if service.data['device_id'] not in ('', device_id):
                         service.close()
                         raise ValueError('本地队列与打印机身份不符。')

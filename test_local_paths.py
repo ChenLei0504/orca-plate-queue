@@ -54,7 +54,7 @@ class LongPathTests(unittest.TestCase):
         source=self.make(self.base/'swap.3mf',swap=True)
         service,transport=self.service()
         info=inspect_swap_file(str(source),.4);frozen=service.freeze(info)
-        self.assertGreater(len(frozen['path']),300)
+        self.assertGreater(len(frozen['path']),260)
         self.assertFalse(frozen['path'].startswith('\\\\?\\'))
         self.assertEqual(frozen['source_path'],str(source))
         self.assertEqual(service.digest(frozen['path']),info['sha256'])
@@ -101,8 +101,8 @@ class LongPathTests(unittest.TestCase):
         prefs=PagePreferences(self.storage);prefs.set_language('en')
         self.assertEqual(PagePreferences(self.storage).language,'en')
         connection=Transport();connection.watch=lambda _id:None
-        def factory(*args):
-            service=QueueService(*args,start_worker=False);self.services.append(service);return service
+        def factory(*args, **kwargs):
+            service=QueueService(*args,start_worker=False,**kwargs);self.services.append(service);return service
         fleet=QueueFleet(self.storage,connection,inspect_plate,inspect_swap_file,'',service_factory=factory)
         try:
             fleet.select('fixture-a1',connection.snapshot())
@@ -127,7 +127,7 @@ class LongPathTests(unittest.TestCase):
             page.on_message({'action':'save_swap','path':str(swap),'nozzle':.4,'enabled':True,'automatic':False})
             self.assertTrue(page.reply['success'],page.reply.get('note'))
             cached=page.reply['swap_settings']['path']
-            self.assertGreater(len(cached),300)
+            self.assertGreater(len(cached),260)
             self.assertTrue(inspect_swap_file(cached,.4)['validated'])
             model=self.make(self.base/'model.3mf')
             page.on_message({'action':'add','path':str(model),'copies':1})
