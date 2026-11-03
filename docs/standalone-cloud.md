@@ -1,6 +1,6 @@
 # 独立云连接版 / Standalone cloud preview
 
-当前产物：**0.8.0a1 · 20261103.4**，本地可安装测试包，尚未发布到市场。
+当前产物：**0.8.0a1 · 20261103.5**，本地可安装测试包，尚未发布到市场。
 旧的 0.7.8 分离安装版构建入口保持不变。
 
 ## 用户使用方式
@@ -84,7 +84,7 @@ python -m unittest test_standalone_release -v
 
 ## English
 
-**0.8.0a1 / 20261103.4** is a locally built installable preview, not a validated public release.
+**0.8.0a1 / 20261103.5** is a locally built installable preview, not a validated public release.
 One wheel includes the UI, scheduler, a private child process, pinned Open Bamboo networking code and compatible Microsoft runtimes. Users do not need a separate server, installer or Open Bamboo plugin.
 
 Install through Orca’s plugin manager after pausing/reconciling and disabling the old queue. Sign in with an email/SMS code in the plugin. Keep the printer in cloud mode. Existing networking files are untouched; old `v3` queues are separate from `v4-cloud`.
@@ -112,3 +112,9 @@ Short session paths now retain the host-allowed spelling. The exact private-comp
 首次授权后后台操作可能已被 Orca 中止：同意后点“连接说明 → 重新连接”，无需反复重启或重装。读、写管道是两项不同授权，弹窗都可能显示 `open`；权限随插件保存，重新安装会由 Orca 重新审核。授权恢复现在显示明确操作提示；未登录的重新连接成功后显示“请登录 Bambu Cloud”。
 
 CN SMS requests now acquire a fresh anonymous CSRF cookie from the website and submit its matching header only to that website. Cookies remain in memory and are never sent to API login. Anonymous empty-request verification changed from missing-cookie HTTP 403 to expected invalid-parameter HTTP 400; real SMS delivery and login remain unverified. After accepting an interrupted background operation, use Reconnect; no restart is needed. Read/write pipe grants are separate and reinstallation triggers Orca's permission review again.
+
+### 20261103.5 登录诊断 / Authentication diagnostics
+
+验证码请求的网络、权限和响应解析异常不再统一显示为网络不通。提示附带固定的请求阶段与错误类别，例如 `SMS_SEND/TIMEOUT`、`SMS_SEND/HTTP_200/NON_JSON`；不显示原始异常、响应正文、账号或 Cookie。验证码确认可识别 HTTP 204 无正文及 JSON `OK` / `success`，登录仍要求有效会话对象。真实短信失败原因尚待下一次用户请求的诊断确认；匿名可达性测试不代表短信发送或账号登录成功。
+
+Errors now identify the authentication stage and fixed failure category without raw responses or credentials. Code acknowledgements support empty HTTP 204 and explicit JSON success strings; login token validation remains strict. Real SMS delivery and the user-specific failure remain unverified.

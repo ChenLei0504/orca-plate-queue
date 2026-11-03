@@ -77,6 +77,43 @@ class LoginTests(unittest.TestCase):
             self.assertNotIn('SECRET',str(caught.exception))
             self.assertEqual(len(opener.calls),1)
 
+    def test_network_errors_have_safe_stage_specific_diagnostics(self):
+        import socket,ssl
+        cases=[(TimeoutError('SECRET'), 'TIMEOUT'),
+               (urllib.error.URLError(socket.gaierror(-1,'SECRET')), 'DNS'),
+               (ssl.SSLCertVerificationError('SECRET'), 'TLS_CERTIFICATE'),
+               (ConnectionResetError('SECRET'), 'CONNECTION'),
+               (RuntimeError('SECRET audit permission required'), 'PERMISSION'),
+               (RuntimeError('SECRET'), 'INTERNAL')]
+        for error,category in cases:
+            with self.subTest(category=category):
+                opener=Opener(error)
+                with self.assertRaises(CloudLoginError) as caught:
+                    CloudLogin(opener).send_code('CN','x@example.com')
+                self.assertEqual(caught.exception.diagnostic,'EMAIL_SEND/'+category)
+                self.assertNotIn('SECRET',str(caught.exception))
+                self.assertEqual(len(opener.calls),1)
+
+    def test_verification_acknowledgements_do_not_relax_login_token_validation(self):
+        for body,status in [(b'',204),(b'"OK"',200),(b'"success"',200)]:
+            def response(*args,**kwargs):
+                result=Reply(body);result.status=status;return result
+            opener=Opener({})
+            with patch.object(opener,'open',side_effect=response):
+                CloudLogin(opener).send_code('CN','x@example.com')
+                with self.assertRaises(CloudLoginError):
+                    CloudLogin(opener).login('CN','x@example.com','123456')
+
+    def test_unexpected_response_is_not_reported_as_network_failure(self):
+        for body,category in [(b'<html>SECRET</html>','NON_JSON'),
+                              (b'"SECRET"','JSON_STRING'),(b'[]','JSON_SHAPE')]:
+            response=Reply(body);response.status=200
+            with patch.object(Opener,'open',return_value=response):
+                with self.assertRaises(CloudLoginError) as caught:
+                    CloudLogin(Opener({})).send_code('CN','x@example.com')
+            self.assertEqual(caught.exception.diagnostic,'EMAIL_SEND/HTTP_200/'+category)
+            self.assertNotIn('SECRET',str(caught.exception))
+
     def test_bad_input_never_contacts_cloud(self):
         opener = Opener({})
         client = CloudLogin(opener)

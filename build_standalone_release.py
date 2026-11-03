@@ -11,7 +11,7 @@ from build_public_release import runtime_entries, archive_bytes, SOURCES
 
 ROOT = Path(__file__).resolve().parent
 VERSION = '0.8.0a1'
-BUILD = '20261103.4'
+BUILD = '20261103.5'
 OUT = ROOT / 'standalone-dist' / VERSION
 NATIVE = ROOT / 'native/owned-host-build'
 EXTRA = ['cloud_login.py','owned_connection.py','build_standalone_release.py','test_owned_connection.py',

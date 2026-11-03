@@ -409,5 +409,10 @@ test('cloud region choice survives polling before entering an account',async()=>
  const t=launch(state);try{t.el('cloudRegion').value='US';t.set(state);assert.equal(t.el('cloudRegion').value,'US');t.el('cloudAccount').value='fixture@example.com';t.el('cloudSendCode').click();await tick();assert.equal(t.requests.find(r=>r.action==='cloud_send_code').region,'US')}finally{t.close()}
 });
 
+test('cloud diagnostic categories translate without exposing credentials',async()=>{
+ const state=fixture();state.connection_mode='owned_cloud';state.cloud_auth={region:'CN',logged_in:false,busy:false,note:'登录服务返回了非 JSON 响应，无法确认请求结果。（诊断：SMS_SEND/HTTP_200/NON_JSON）',cooldown:0};
+ const t=launch(state);try{t.el('openConnection').click();await chooseLanguage(t,'en');assert.match(t.el('cloudAuthNote').textContent,/non-JSON/);assert.match(t.el('cloudAuthNote').textContent,/SMS_SEND\/HTTP_200\/NON_JSON/);assert.doesNotMatch(t.el('cloudAuthNote').textContent,/[\u4e00-\u9fff]/)}finally{t.close()}
+});
+
 module.exports={fixture,multiFixture,amsFixture,emptyImportFixture,bundledFixture};
 if(require.main===module)(async()=>{for(const [name,fn] of tests){await fn();console.log('PASS',name)}console.log(tests.length+' page workflow tests passed; no real printer calls.');})().catch(e=>{console.error(e);process.exitCode=1});

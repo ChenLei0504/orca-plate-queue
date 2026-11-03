@@ -879,6 +879,15 @@ window.QueueMessages=Object.freeze({
     "云端拒绝了认证请求（HTTP 403）；无法仅凭此状态判断账号或地区是否有误。": "The cloud rejected authentication (HTTP 403). This status alone does not establish an account or region error.",
     "账号或验证码未通过校验，请核对输入。": "The account or verification code was not accepted. Check your input.",
     "无法获取短信网页校验信息，请稍后重试。": "Could not obtain SMS website validation data. Try again later.",
+    "Orca 尚未允许本次网络操作。授权后再试，无需修改网络设置。": "Orca has not allowed this network operation yet. Approve it and retry; no network change is needed.",
+    "登录服务的证书校验失败，请检查系统时间和网络代理证书。": "Login server certificate verification failed. Check system time and proxy certificates.",
+    "与登录服务建立安全连接失败。": "A secure connection to the login service could not be established.",
+    "登录服务请求超时，发送结果尚不确定；请先检查是否收到验证码，勿连续重试。": "The login service timed out; the result is uncertain. Check for a verification code before retrying.",
+    "无法解析登录服务地址，请检查 DNS 或代理设置。": "The login service address could not be resolved. Check DNS or proxy settings.",
+    "登录服务连接中断或被拒绝，请检查网络或代理。": "The login service connection was interrupted or refused. Check your network or proxy.",
+    "登录请求处理异常，请提供诊断编号。": "The login request could not be processed. Please provide the diagnostic code.",
+    "登录服务返回了非 JSON 响应，无法确认请求结果。": "The login service returned a non-JSON response. The result cannot be confirmed.",
+    "登录服务返回了不支持的数据格式，无法确认请求结果。": "The login service returned an unsupported data format. The result cannot be confirmed.",
     "独立连接启动失败，请检查插件文件和权限。": "Independent connection failed to start. Check plugin files and permissions.",
     "连接组件无响应或已退出；已暂停连接，请核对当前任务后重新连接。": "The networking component stopped responding or exited. Check the current task before reconnecting.",
     "独立连接已关闭，请重新连接。": "The independent connection is closed. Reconnect to continue.",
@@ -892,6 +901,7 @@ window.QueueMessages=Object.freeze({
     "通过本插件的独立 Bambu Cloud 连接。": "Connected through this plugin’s independent Bambu Cloud session."
   },
   "patterns": [
+    ["{message}（诊断：{code}）", "{0} (Diagnostic: {1})"],
     [
       "{0} 条 HMS 设备告警",
       "{0} HMS alerts"
